@@ -1,0 +1,99 @@
+{
+  "version": "yellowsub-mp-r01",
+  "pwm_transition_value": 70,
+  "pwm_boost_value": 100,
+  "sample_interval_ms": 3000,
+  "boost": {
+    "fan_fail": true,
+    "sensor_fail": true
+  },
+  "watchdog": false,
+  "min_rpm": 800,
+  "profiles": {
+    "linear_dimm": {
+      "read_source" : {
+        "util" : "/usr/local/bin/sensor-util"
+      },
+      "type": "linear",
+      "positive_hysteresis": 0,
+      "negative_hysteresis": 10,
+      "data": [
+        [50, 35],
+        [60, 50],
+        [70, 65],
+        [80, 80],
+        [90, 100]
+      ]
+    },
+    "linear_mezz": {
+      "read_source" : {
+        "util" : "/usr/local/bin/sensor-util"
+      },
+      "type": "linear",
+      "positive_hysteresis": 0,
+      "negative_hysteresis": 10,
+      "data": [
+        [65, 35],
+        [75, 50],
+        [85, 65],
+        [95, 80],
+        [110, 100]
+      ]
+    },
+    "linear_soc": {
+      "read_source" : {
+        "util" : "/usr/local/bin/sensor-util"
+      },
+      "type": "linear",
+      "positive_hysteresis": 0,
+      "negative_hysteresis": 10,
+      "data": [
+        [50, 35],
+        [60, 50],
+        [70, 65],
+        [80, 80],
+        [90, 100]
+      ]
+    }
+  },
+  "fans": {
+    "0": {
+      "read_source" : {
+        "util" : "/usr/local/bin/fan-util --get 0"
+      },
+      "write_source" : {
+        "util" : "/usr/local/bin/fan-util --set %d 0"
+      }
+    },
+    "1": {
+      "read_source" : {
+        "util" : "/usr/local/bin/fan-util --get 1"
+      },
+      "write_source" : {
+        "util" : "/usr/local/bin/fan-util --set %d 1"
+      }
+    },
+    "2": {
+      "read_source" : {
+        "util" : "/usr/local/bin/fan-util --get 2"
+      },
+      "write_source" : {
+        "util" : "/usr/local/bin/fan-util --set %d 2"
+      }
+    },
+    "3": {
+      "read_source" : {
+        "util" : "/usr/local/bin/fan-util --get 3"
+      },
+      "write_source" : {
+        "util" : "/usr/local/bin/fan-util --set %d 3"
+      }
+    }
+  },
+  "zones": {
+    "zone_1": {
+      "pwm_output": [0, 1, 2, 3],
+      "expr_file": "zone1.fsc"
+    }
+  }
+}

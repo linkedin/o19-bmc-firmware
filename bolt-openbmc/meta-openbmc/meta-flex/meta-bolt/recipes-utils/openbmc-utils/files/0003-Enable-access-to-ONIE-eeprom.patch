@@ -1,0 +1,24 @@
+From f397f03548cf9efa784237370d3d3293060a98d8 Mon Sep 17 00:00:00 2001
+From: Adrian Brathwaite <adrian.brathwaite@flex.com>
+Date: Tue, 20 Mar 2018 14:21:48 -0700
+Subject: [PATCH] Enable access to ONIE eeprom
+
+---
+ .../setup_i2c.sh         | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/setup_i2c.sh b/setup_i2c.sh
+index 7f2f255..f342c4c 100644
+--- a/setup_i2c.sh
++++ b/setup_i2c.sh
+@@ -30,6 +30,7 @@ i2c_device_add 3 0x4c tmp75
+ 
+ # Bus 4
+ i2c_device_add 4 0x33 com_e_driver
++i2c_device_add 4 0x50 24c64
+ 
+ # Bus 6
+ i2c_device_add 6 0x2f pcf8574
+-- 
+2.5.0
+

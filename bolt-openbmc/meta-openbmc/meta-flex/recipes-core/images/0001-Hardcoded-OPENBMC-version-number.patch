@@ -1,0 +1,27 @@
+From 220760492aa363e983e44ed927bf0756d268e25a Mon Sep 17 00:00:00 2001
+From: Adrian Brathwaite <adrian.brathwaite@flex.com>
+Date: Thu, 12 Apr 2018 13:54:54 -0700
+Subject: [PATCH] Hardcoded OPENBMC version number
+
+---
+ fb-openbmc-image.bb | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/fb-openbmc-image.bb b/fb-openbmc-image.bb
+index dfa7dbe..674ec4a 100644
+--- a/fb-openbmc-image.bb
++++ b/fb-openbmc-image.bb
+@@ -16,8 +16,8 @@ openbmc_rootfs_fixup() {
+     fi
+ 
+     # version
+-    echo "OpenBMC Release ${OPENBMC_VERSION}" > ${IMAGE_ROOTFS}/etc/issue
++    echo "Bolt Firmware Release 1.7.0" > ${IMAGE_ROOTFS}/etc/issue
+     echo >> ${IMAGE_ROOTFS}/etc/issue
+-    echo "OpenBMC Release ${OPENBMC_VERSION} %h" > ${IMAGE_ROOTFS}/etc/issue.net
++    echo "Bolt Firmware Release 1.7.0 %h" > ${IMAGE_ROOTFS}/etc/issue.net
+     echo >> ${IMAGE_ROOTFS}/etc/issue.net
+ }
+-- 
+2.5.0
+

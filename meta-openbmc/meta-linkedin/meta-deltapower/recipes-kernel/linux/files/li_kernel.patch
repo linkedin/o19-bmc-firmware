@@ -1,0 +1,728 @@
+diff --git a/arch/arm/configs/ast2400_defconfig b/arch/arm/configs/ast2400_defconfig
+index 94919f7f51e3..abe9f2f02508 100644
+--- a/arch/arm/configs/ast2400_defconfig
++++ b/arch/arm/configs/ast2400_defconfig
+@@ -1221,7 +1221,7 @@ CONFIG_HWMON=y
+ # CONFIG_SENSORS_LM63 is not set
+ # CONFIG_SENSORS_LM70 is not set
+ # CONFIG_SENSORS_LM73 is not set
+-# CONFIG_SENSORS_LM75 is not set
++CONFIG_SENSORS_LM75=y
+ # CONFIG_SENSORS_LM77 is not set
+ # CONFIG_SENSORS_LM78 is not set
+ # CONFIG_SENSORS_LM80 is not set
+diff --git a/arch/arm/mach-aspeed/Kconfig b/arch/arm/mach-aspeed/Kconfig
+index f37d9da0baa1..ea4d52875941 100644
+--- a/arch/arm/mach-aspeed/Kconfig
++++ b/arch/arm/mach-aspeed/Kconfig
+@@ -227,6 +227,15 @@ config YOSEMITE
+         select EGFX_IRQ
+         bool "Facebook Yosemite"
+ 
++config DELTAPOWER
++        bool "LinkedIn Delta Power"
++
++config YELLOWSUB
++        select USB_ARCH_HAS_EHCI
++        select AST_UART_SDMA
++        select EGFX_IRQ
++        bool "Linkedin Yellowsub"
++
+ config FBPLATFORM1
+         bool "Facebook Platform1"
+ 
+@@ -280,7 +289,7 @@ config AST_CONSOLE_UART_BASE
+     hex "Console UART base address"
+     default 0x1e783000 if CMM
+     default 0x1e784000 if YAMP
+-    default 0x1e78e000 if WEDGE || WEDGE100
++    default 0x1e78e000 if WEDGE || WEDGE100 || DELTAPOWER
+     default 0x1e783000 if MINIPACK
+     default 0x1e784000 if FBTP
+     default 0x1e784000 if FBY2
+diff --git a/arch/arm/mach-aspeed/ast.c b/arch/arm/mach-aspeed/ast.c
+index d69f30a443c8..d78cbea584c0 100644
+--- a/arch/arm/mach-aspeed/ast.c
++++ b/arch/arm/mach-aspeed/ast.c
+@@ -123,7 +123,7 @@ static const char * const ast_dt_match[] = {
+ 
+ void ast_restart(enum reboot_mode mode, const char *cmd)
+ {
+-#if defined(CONFIG_YOSEMITE) || defined(CONFIG_FBTP) || defined(CONFIG_FBTTN) || defined(CONFIG_LIGHTNING) ||  defined(CONFIG_FBY2) || defined(CONFIG_PWNEPTUNE) || defined(CONFIG_MINILAKETB)
++#if defined(CONFIG_YOSEMITE) || defined(CONFIG_FBTP) || defined(CONFIG_FBTTN) || defined(CONFIG_LIGHTNING) ||  defined(CONFIG_FBY2) || defined(CONFIG_PWNEPTUNE) || defined(CONFIG_MINILAKETB) || defined(CONFIG_YELLOWSUB)
+ 	ast_wdt_reset_soc();
+ #else
+ 	ast_wdt_reset_full();
+diff --git a/arch/arm/plat-aspeed/Makefile b/arch/arm/plat-aspeed/Makefile
+index 55d9a0d6e11a..4dbad4950377 100644
+--- a/arch/arm/plat-aspeed/Makefile
++++ b/arch/arm/plat-aspeed/Makefile
+@@ -87,6 +87,16 @@ ifeq ($(CONFIG_YOSEMITE), y)
+   PLATFB = 1
+ endif
+ 
++ifeq ($(CONFIG_DELTAPOWER), y)
++  obj-y += dev-uart.o
++  PLATFB = 1
++endif
++
++ifeq ($(CONFIG_YELLOWSUB), y)
++  obj-y += dev-uart.o  dev-i2c.o
++  PLATFB = 1
++endif
++
+ ifeq ($(CONFIG_PWNEPTUNE), y)
+   obj-y += dev-uart-fbtp.o dev-i2c.o
+   PLATFB = 1
+diff --git a/arch/arm/plat-aspeed/dev-eth.c b/arch/arm/plat-aspeed/dev-eth.c
+index 7e28d004a6f7..f9c934e98f11 100644
+--- a/arch/arm/plat-aspeed/dev-eth.c
++++ b/arch/arm/plat-aspeed/dev-eth.c
+@@ -45,7 +45,7 @@
+ 	defined(CONFIG_FBTTN) || defined(CONFIG_FBY2) || \
+ 	defined(CONFIG_YOSEMITE) || defined(CONFIG_MINIPACK) || \
+ 	defined(CONFIG_MINILAKETB) || defined(CONFIG_YAMP) || \
+-	defined(CONFIG_GALAXY100)
++	defined(CONFIG_GALAXY100) || defined(CONFIG_YELLOWSUB)
+ #define DRVNAME "ftgmac100"
+ #else
+ #define DRVNAME "ast_gmac"
+diff --git a/arch/arm/plat-aspeed/dev-i2c.c b/arch/arm/plat-aspeed/dev-i2c.c
+index 36892b43f1fd..6c927d98ca71 100644
+--- a/arch/arm/plat-aspeed/dev-i2c.c
++++ b/arch/arm/plat-aspeed/dev-i2c.c
+@@ -879,7 +879,7 @@ static struct i2c_board_info ast_i2c_board_info_13[] __initdata = {
+ };
+ 
+ //end for FBTTN
+-#elif defined(CONFIG_YOSEMITE)
++#elif defined(CONFIG_YOSEMITE) || defined(CONFIG_YELLOWSUB)
+ 
+ //Under I2C Dev 0
+ static struct i2c_board_info ast_i2c_board_info_0[] __initdata = {
+@@ -966,6 +966,134 @@ static struct i2c_board_info ast_i2c_board_info_12[] __initdata = {
+ };
+ 
+ /* end of CONFIG_YOSEMITE */
++#elif defined(CONFIG_DELTAPOWER)
++//DELTAPOWER start
++
++//Under I2C Dev 0
++static struct i2c_board_info ast_i2c_board_info_0[] __initdata = {
++  // efuses 
++  {
++    I2C_BOARD_INFO("lm25066", 0x12),
++  },
++  {
++    I2C_BOARD_INFO("lm25066", 0x13),
++  },
++  {
++    I2C_BOARD_INFO("lm25066", 0x10),
++  },
++  {
++    I2C_BOARD_INFO("lm25066", 0x11),
++  },
++  {
++    I2C_BOARD_INFO("lm25066", 0x46),
++  },
++  {
++    I2C_BOARD_INFO("lm25066", 0x47),
++  },
++  {
++    I2C_BOARD_INFO("lm25066", 0x45),
++  },
++};
++
++//Under I2C Dev 1
++static struct i2c_board_info ast_i2c_board_info_1[] __initdata = {
++  // Slot#0 IPMB interface
++};
++
++//Under I2C Dev 2
++static struct i2c_board_info ast_i2c_board_info_2[] __initdata = {
++  // Slot#1 NIC sideband
++};
++
++
++//Under I2C Dev 3
++static struct i2c_board_info ast_i2c_board_info_3[] __initdata = {
++  // Slot#1 IPMB interface
++};
++
++//Under I2C Dev 4
++static struct i2c_board_info ast_i2c_board_info_4[] __initdata = {
++  {
++    I2C_BOARD_INFO("lm25066", 0x12),
++  },
++  {
++    I2C_BOARD_INFO("lm25066", 0x13),
++  },
++  {
++    I2C_BOARD_INFO("lm25066", 0x10),
++  },
++  {
++    I2C_BOARD_INFO("lm25066", 0x11),
++  },
++  {
++    I2C_BOARD_INFO("lm25066", 0x46),
++  },
++  {
++    I2C_BOARD_INFO("lm25066", 0x47),
++  },
++  {
++    I2C_BOARD_INFO("lm25066", 0x45),
++  },
++};
++
++//Under I2C Dev 5
++static struct i2c_board_info ast_i2c_board_info_5[] __initdata = {
++};
++
++//Under I2C Dev 6
++static struct i2c_board_info ast_i2c_board_info_6[] __initdata = {
++  // Slot#3 NIC sideband
++};
++
++//Under I2C Dev 7
++static struct i2c_board_info ast_i2c_board_info_7[] __initdata = {
++  // Slot#3 IPMB interface
++};
++
++//Under I2C Dev 8
++static struct i2c_board_info ast_i2c_board_info_8[] __initdata = {
++  // FRUID
++  {
++    I2C_BOARD_INFO("24c64", 0x51),
++  },
++};
++
++//Under I2C Dev 9
++static struct i2c_board_info ast_i2c_board_info_9[] __initdata = {
++  // Inlet and Outlet temp. sensors
++  {
++    I2C_BOARD_INFO("tmp421", 0x4e),
++  },
++  {
++    I2C_BOARD_INFO("tmp421", 0x4f),
++  },
++};
++
++//Under I2C Dev 10
++static struct i2c_board_info ast_i2c_board_info_10[] __initdata = {
++  // Hotswap Sensor
++  {
++    I2C_BOARD_INFO("adm1278", 0x40),
++  },
++};
++
++//Under I2C Dev 11
++static struct i2c_board_info ast_i2c_board_info_11[] __initdata = {
++  // Mezz Card LAN_SMB bus (PHY, Temp. Sensor)
++  //{
++    //I2C_BOARD_INFO("tmp75", 0x1f),
++  //},
++};
++
++//Under I2C Dev 12
++static struct i2c_board_info ast_i2c_board_info_12[] __initdata = {
++  // Mezz Card Mezz_SMB bus (FRUID, GPIO expander, QSFP+)
++  {
++    I2C_BOARD_INFO("24c64", 0x51),
++  },
++};
++
++/* end of CONFIG_DELTAPOWER */
+ #elif defined(CONFIG_LIGHTNING)
+ //FBLTN start
+ static struct i2c_board_info __initdata ast_i2c_board_info_0[] = {
+@@ -1251,7 +1379,7 @@ void __init ast_add_device_i2c(void)
+ 	i2c_register_board_info(13, ast_i2c_board_info_13,
+ 			ARRAY_SIZE(ast_i2c_board_info_13));
+ }
+-#elif defined(CONFIG_YOSEMITE)
++#elif defined(CONFIG_YOSEMITE) || defined(CONFIG_YELLOWSUB)
+ void __init ast_add_device_i2c(void)
+ {
+ 	/* I2C Multi-Pin */
+@@ -1308,7 +1436,7 @@ void __init ast_add_device_i2c(void)
+                   ARRAY_SIZE(ast_i2c_board_info_12));
+ }
+ 
+-#elif defined(CONFIG_LIGHTNING)
++#elif defined(CONFIG_LIGHTNING) || defined(CONFIG_DELTAPOWER)
+ void __init ast_add_device_i2c(void)
+ {
+ 	/* I2C Multi-Pin */
+diff --git a/arch/arm/plat-aspeed/dev-spi-fb.c b/arch/arm/plat-aspeed/dev-spi-fb.c
+index acde30e08b00..5769b18e20bc 100644
+--- a/arch/arm/plat-aspeed/dev-spi-fb.c
++++ b/arch/arm/plat-aspeed/dev-spi-fb.c
+@@ -60,7 +60,8 @@ static u32 ast_spi_calculate_divisor(u32 max_speed_hz)
+ 
+ static struct ast_spi_driver_data ast_fmc_driver_data = {
+ 	.get_div = ast_spi_calculate_divisor,
+-	.num_chipselect = AST_FMC_CS_NUM,
++//	.num_chipselect = AST_FMC_CS_NUM,
++    .num_chipselect = 2,
+ };
+ 
+ static struct ast_spi_driver_data ast_spi0_driver_data = {
+@@ -173,7 +174,7 @@ static struct platform_device ast_fmc_device = {
+ };
+ 
+ static struct platform_device ast_spi0_device = {
+-#if defined CONFIG_WEDGE100 || defined CONFIG_MINIPACK
++#if defined CONFIG_WEDGE100 || defined CONFIG_MINIPACK || defined(CONFIG_YELLOWSUB) || defined CONFIG_DELTAPOWER
+           .name           = "ast-spi",
+           .id             = 1,
+ #else
+@@ -284,6 +285,36 @@ static struct mtd_partition ast_primary_partitions[] = {
+ 	},
+ };
+ 
++static struct mtd_partition ast_legacy_partition1[] = {
++        {
++                .name       = "u-boot",
++                .offset     = 0,        /* From 0 */
++                .size       = 0x60000,  /* Size 384K */
++                .mask_flags = MTD_WRITEABLE,
++        }, {
++                .name       = "env",
++                .offset     = MTDPART_OFS_APPEND,  /* From 384K */
++                .size       = 0x20000,  /* Size 128K, two sectors */
++        }, {
++                .name       = "kernel",
++                .offset     = MTDPART_OFS_APPEND,  /* From 512K */
++                .size       = 0x400000, /* Size 4M */
++        }, {
++               .name       = "rootfs",
++                .offset     = MTDPART_OFS_APPEND,  /* From 4.5M */
++                .size       = 0x1780000, /* Size 23.5M */
++        }, {
++                .name       = "data1",
++                .offset     = MTDPART_OFS_APPEND,
++                .size       = MTDPART_SIZ_FULL,
++       },
++        {
++                .name       = "flash1",
++                .offset     = 0,        /* From 0 */
++                .size       = MTDPART_SIZ_FULL,  /* full size */
++        },
++};
++
+ static struct mtd_partition ast_rom_partitions[] = {
+ 	{
+ 		.name       = "rom",               /* ROM (SPL), recovery U-boot */
+@@ -373,6 +404,12 @@ static struct flash_platform_data ast_legacy_platform_data = {
+ 	.parts      = ast_legacy_partitions,
+ };
+ 
++static struct flash_platform_data ast_legacy1_platform_data = {
++        .type       = "mx25l25635e",
++        .nr_parts   = ARRAY_SIZE(ast_legacy_partition1),
++        .parts      = ast_legacy_partition1,
++};
++
+ /* The ROM platform data is FMC.0 (CS0) */
+ static struct flash_platform_data ast_rom_platform_data = {
+ 	.type       = "mx25l25635e",
+@@ -462,6 +499,14 @@ static struct spi_board_info ast_single_flash_fmc_devices[] = {
+ 		.bus_num    		= 0,
+ 		.mode 			    = SPI_MODE_0,
+ 	},
++    {
++        .modalias       = "m25p80",
++        .platform_data  = &ast_legacy1_platform_data,
++        .chip_select    = 1,
++        .max_speed_hz   = 50 * 1000 * 1000,
++        .bus_num        = 0,
++        .mode           = SPI_MODE_0,
++    },
+ };
+ 
+ #ifdef CONFIG_MINIPACK
+@@ -474,10 +519,11 @@ static struct spi_eeprom m95m02 = {
+ #endif
+ 
+ #if defined(CONFIG_FBTP)  || defined (CONFIG_WEDGE100) || defined (CONFIG_PWNEPTUNE) || \
+-    defined(CONFIG_MINIPACK)
++    defined(CONFIG_MINIPACK) || defined(CONFIG_YELLOWSUB) || defined CONFIG_DELTAPOWER
+ static struct spi_board_info ast_spi0_devices[] = {
+     {
+-#if defined(CONFIG_WEDGE100) || defined(CONFIG_MINIPACK)
++#if defined(CONFIG_WEDGE100) || defined(CONFIG_MINIPACK) || defined(CONFIG_YELLOWSUB) || \
++    defined CONFIG_DELTAPOWER
+         .modalias           = "spidev",
+         .chip_select        = 0,
+         .max_speed_hz       = 33 * 1000 * 1000,
+@@ -566,7 +612,8 @@ void __init ast_add_device_spi(void)
+   } else {
+     spi_register_board_info(ast_single_flash_fmc_devices, ARRAY_SIZE(ast_single_flash_fmc_devices));
+   }
+-#if defined(CONFIG_FBTP) || defined(CONFIG_WEDGE100) || defined(CONFIG_PWNEPTUNE)
++#if defined(CONFIG_FBTP) || defined(CONFIG_WEDGE100) || defined(CONFIG_PWNEPTUNE) || \
++    defined(CONFIG_DELTAPOWER) || defined(CONFIG_YELLOWSUB)
+ 	platform_device_register(&ast_spi0_device);
+ 	spi_register_board_info(ast_spi0_devices, ARRAY_SIZE(ast_spi0_devices));
+ #elif defined(CONFIG_MINIPACK)
+diff --git a/arch/arm/plat-aspeed/dev-uart.c b/arch/arm/plat-aspeed/dev-uart.c
+index 78123f784287..4f1749c6620b 100644
+--- a/arch/arm/plat-aspeed/dev-uart.c
++++ b/arch/arm/plat-aspeed/dev-uart.c
+@@ -195,7 +195,7 @@ static struct plat_serial8250_port ast_uart_data[] = {
+ /* Without this, tty offset might change for others */
+ #if defined(CONFIG_YOSEMITE) || defined(CONFIG_FBTP) ||  defined(CONFIG_FBY2) || defined(CONFIG_PWNEPTUNE) || \
+     defined(CONFIG_MINIPACK) || defined(CONFIG_MINILAKETB) || \
+-    defined(CONFIG_YAMP)
++    defined(CONFIG_YAMP)  || defined(CONFIG_YELLOWSUB)
+ 	{
+ 		.mapbase	= AST_UART2_BASE,
+ 		.irq		= IRQ_UART2,
+@@ -372,7 +372,7 @@ struct platform_device ast_uart_device = {
+ void __init ast_add_device_uart(void)
+ {
+ #if defined(CONFIG_ARCH_AST1010)
+-#elif defined(CONFIG_YOSEMITE)
++#elif defined(CONFIG_YOSEMITE)  || defined(CONFIG_YELLOWSUB)
+ 	ast_scu_multi_func_uart(1);
+ 	ast_scu_multi_func_uart(2);
+ 	ast_scu_multi_func_uart(3);
+diff --git a/drivers/hwmon/pmbus/lm25066.c b/drivers/hwmon/pmbus/lm25066.c
+index a26b1d1d9514..4ba01a8a2a02 100644
+--- a/drivers/hwmon/pmbus/lm25066.c
++++ b/drivers/hwmon/pmbus/lm25066.c
+@@ -44,6 +44,11 @@ enum chips { lm25056, lm25063, lm25066, lm5064, lm5066 };
+ 
+ #define LM25066_DEV_SETUP_CL		(1 << 4)	/* Current limit */
+ 
++#define LM25066_OP_REG_ADDR     PMBUS_OPERATION
++#define LM25066_OP_SHUTDOWN_CMD 0x0
++#define LM25066_OP_POWERON_CMD  PB_OPERATION_CONTROL_ON
++#define LM25066_OP_ARG_SHUTDOWN 1
++
+ /* LM25056 only */
+ 
+ #define LM25056_VAUX_OV_WARN_LIMIT	0xe3
+@@ -99,10 +104,12 @@ static struct __coeff lm25066_coeff[5][PSC_NUM_CLASSES + 2] = {
+ 		},
+ 		[PSC_VOLTAGE_OUT] = {
+ 			.m = 22070,
++			.b = -1800,
+ 			.R = -2,
+ 		},
+ 		[PSC_CURRENT_IN] = {
+-			.m = 13661,
++			.m = 9153,
++			.b = -5200,
+ 			.R = -2,
+ 		},
+ 		[PSC_CURRENT_IN_L] = {
+@@ -110,7 +117,9 @@ static struct __coeff lm25066_coeff[5][PSC_NUM_CLASSES + 2] = {
+ 			.R = -2,
+ 		},
+ 		[PSC_POWER] = {
+-			.m = 736,
++			/* Rs = 0.67,   m*Rs=493 */
++			.m = 493,
++			.b = -3300,
+ 			.R = -2,
+ 		},
+ 		[PSC_POWER_L] = {
+@@ -214,6 +223,7 @@ static struct __coeff lm25066_coeff[5][PSC_NUM_CLASSES + 2] = {
+ struct lm25066_data {
+ 	int id;
+ 	u16 rlimit;			/* Maximum register value */
++    int shutdown_state;
+ 	struct pmbus_driver_info info;
+ };
+ 
+@@ -283,6 +293,9 @@ static int lm25066_read_word_data(struct i2c_client *client, int page, int reg)
+ 	case PMBUS_VIRT_READ_PIN_MAX:
+ 		ret = pmbus_read_word_data(client, 0, LM25066_READ_PIN_PEAK);
+ 		break;
++    case PMBUS_STATUS_WORD:
++        ret = pmbus_read_word_data(client, 0, PMBUS_STATUS_WORD);
++        break;
+ 	case PMBUS_VIRT_RESET_PIN_HISTORY:
+ 		ret = 0;
+ 		break;
+@@ -363,6 +376,65 @@ static int lm25056_read_byte_data(struct i2c_client *client, int page, int reg)
+ 	return ret;
+ }
+ 
++static int lm25066_read_byte_data(struct i2c_client *client, int page, int reg)
++{
++        int ret;
++
++        switch (reg) {
++                case PMBUS_PAGE:
++                case PMBUS_OPERATION:
++                case PMBUS_CLEAR_FAULTS:
++                case PMBUS_CAPABILITY:
++                case PMBUS_VOUT_MODE:
++                case PMBUS_FAN_CONFIG_12:
++                case PMBUS_STATUS_BYTE:
++                case PMBUS_STATUS_VOUT:
++                case PMBUS_STATUS_IOUT:
++                case PMBUS_STATUS_INPUT:
++                case PMBUS_STATUS_TEMPERATURE:
++                case PMBUS_STATUS_CML:
++                case PMBUS_STATUS_OTHER:
++                case PMBUS_STATUS_MFR_SPECIFIC:
++                case PMBUS_STATUS_FAN_12:
++                        ret = pmbus_read_byte_data(client, page, reg);
++                        return ret;
++                default:
++                        return -ENXIO;
++        }
++        return ret;
++}
++
++static int lm25066_write_byte(struct i2c_client *client, int page, u8 value)
++{
++        int ret;
++
++        switch (value) {
++                case PMBUS_PAGE:
++                case PMBUS_OPERATION:
++                case PMBUS_CLEAR_FAULTS:
++                        ret = pmbus_write_byte(client, page, value);
++                        return ret;
++                default:
++                        return -ENXIO;
++        }
++}
++
++static int lm25066_write_byte_data(struct i2c_client *client, int page, int reg,
++                                   u8 value)
++{
++        int ret;
++
++        switch (reg) {
++                case PMBUS_PAGE:
++                case PMBUS_OPERATION:
++                case PMBUS_CLEAR_FAULTS:
++                        ret = pmbus_write_byte_data(client, page, reg, value);
++                        return ret;
++                default:
++                        return -ENXIO;
++        }
++}
++
+ static int lm25066_write_word_data(struct i2c_client *client, int page, int reg,
+ 				   u16 word)
+ {
+@@ -425,6 +497,119 @@ static int lm25066_write_word_data(struct i2c_client *client, int page, int reg,
+ 	return ret;
+ }
+ 
++static ssize_t lm25066_shutdown_show(struct device *dev,
++        struct device_attribute *attr, char *buf)
++{
++        struct i2c_client *client = to_i2c_client(dev);
++        const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
++        struct lm25066_data *data = to_lm25066_data(info);
++        int len = 0;
++        u8 read_val = 0;
++
++        // Update shutdown state before printing out
++        read_val = lm25066_read_byte_data(client, 0, LM25066_OP_REG_ADDR);
++        // Only if the read was successful, update the status
++        if (data && (read_val >= 0))
++        {
++                if (read_val == LM25066_OP_SHUTDOWN_CMD)
++                        data->shutdown_state = 1;
++                else
++                        data->shutdown_state = 0;
++
++                len = sprintf(buf, "%d\n\nSet to 1 for shutdown LM25066\n",
++                              data->shutdown_state);
++        }
++
++  return len;
++}
++
++static int lm25066_shutdown_store(struct device *dev,
++        struct device_attribute *attr, const char *buf, size_t count)
++{
++        struct i2c_client *client = to_i2c_client(dev);
++        const struct pmbus_driver_info *info;
++        struct lm25066_data *data;
++        u8 write_value = 0;
++        long shutdown = 0;
++        int rc = 0;
++
++         if (client == NULL) {
++             return -ENXIO;
++        }
++
++        info = pmbus_get_driver_info(client);
++        data = to_lm25066_data(info);
++
++        if (buf == NULL) {
++                return -ENXIO;
++        }
++
++        rc = kstrtol(buf, 10, &shutdown);
++        if (rc != 0)    {
++                // Parsing was not successful. But will return as "count" bytes processed
++                // without doing anything, in order to give the control back to
++                // the caller / shell
++                return count;
++        }
++        // We will shutdown LM25066 only if the user input is exactly "1"
++        if (shutdown == (long)LM25066_OP_ARG_SHUTDOWN) {
++                write_value = LM25066_OP_SHUTDOWN_CMD;
++        } else {
++                write_value = LM25066_OP_POWERON_CMD;
++        }
++
++        rc = lm25066_write_byte_data(client, 0,
++                                     LM25066_OP_REG_ADDR, write_value);
++
++  // Write successful. Update driver state
++        if (data && (rc == 0)) {
++                if (write_value == LM25066_OP_SHUTDOWN_CMD)
++                        data->shutdown_state = 1;
++                else
++                        data->shutdown_state = 0;
++        }
++
++        // No matter successful or failure, we processed all input characters
++        // So, return the number of input chars processed to finish the sysfs
++        // access.
++        return count;
++}
++
++static DEVICE_ATTR(shutdown, S_IRUGO | S_IWUSR,
++                   lm25066_shutdown_show,
++                   lm25066_shutdown_store);
++
++static struct attribute *shutdown_attrs[] = {
++                                              &dev_attr_shutdown.attr,
++                                              NULL
++                                            };
++static struct attribute_group control_attr_group = {
++                                                     .name = "control",
++                                                     .attrs = shutdown_attrs,
++                                                   };
++
++static int lm25066_register_shutdown(struct i2c_client *client,
++                                     const struct i2c_device_id *id)
++{
++  return sysfs_create_group(&client->dev.kobj,
++                                                                                                                &control_attr_group);
++}
++
++static void lm25066_remove_shutdown(struct i2c_client *client)
++{
++        sysfs_remove_group(&client->dev.kobj,
++                                                                                 &control_attr_group);
++        return;
++}
++
++static int lm25066_remove(struct i2c_client *client)
++{
++        // First, remove sysfs stub for shutdown control
++        lm25066_remove_shutdown(client);
++        // Finally, remove what pmbus_core has added
++        return pmbus_do_remove(client);
++}
++
+ static int lm25066_probe(struct i2c_client *client,
+ 			  const struct i2c_device_id *id)
+ {
+@@ -432,6 +617,9 @@ static int lm25066_probe(struct i2c_client *client,
+ 	struct lm25066_data *data;
+ 	struct pmbus_driver_info *info;
+ 	struct __coeff *coeff;
++    int pmbus_ret;
++    int addon_ret;
++    int ret;
+ 
+ 	if (!i2c_check_functionality(client->adapter,
+ 				     I2C_FUNC_SMBUS_READ_BYTE_DATA))
+@@ -471,8 +659,10 @@ static int lm25066_probe(struct i2c_client *client,
+ 		info->read_word_data = lm25063_read_word_data;
+ 		data->rlimit = 0xffff;
+ 	} else {
+-		info->func[0] |= PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT;
++		info->func[0] |= PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT | PMBUS_HAVE_STATUS_IOUT;
+ 		info->read_word_data = lm25066_read_word_data;
++        info->read_byte_data = lm25066_read_byte_data;
++        info->write_byte = lm25066_write_byte;
+ 		data->rlimit = 0x0fff;
+ 	}
+ 	info->write_word_data = lm25066_write_word_data;
+@@ -499,7 +689,26 @@ static int lm25066_probe(struct i2c_client *client,
+ 		info->m[PSC_POWER] = coeff[PSC_POWER].m;
+ 	}
+ 
+-	return pmbus_do_probe(client, id, info);
++	pmbus_ret = pmbus_do_probe(client, id, info);
++    // On top of this, install sysfs for shutdown control and status
++    addon_ret = lm25066_register_shutdown(client, id);
++
++    if ((pmbus_ret == 0) && (addon_ret == 0)) {
++        ret = 0;
++    } else {
++        // Something went wrong.
++        if (pmbus_ret == 0)
++        {
++            // Rollback pmbus dev register before bail out
++            pmbus_do_remove(client);
++            // Return the errorcode of shutdown addon installation
++            ret = addon_ret;
++        } else {
++            // Return the errorcode of pmbus device registration
++            ret = pmbus_ret;
++        }
++    }
++    return ret;
+ }
+ 
+ static const struct i2c_device_id lm25066_id[] = {
+diff --git a/drivers/i2c/busses/i2c-ast.c b/drivers/i2c/busses/i2c-ast.c
+index ecaa88f62f36..bb1e85e97ae9 100644
+--- a/drivers/i2c/busses/i2c-ast.c
++++ b/drivers/i2c/busses/i2c-ast.c
+@@ -151,7 +151,7 @@ static u32 select_i2c_clock(struct ast_i2c_dev *i2c_dev)
+   }
+ #endif
+ 
+-#ifdef CONFIG_YOSEMITE
++#ifdef CONFIG_YOSEMITE  || CONFIG_YELLOWSUB
+   if (i2c_dev->ast_i2c_data->bus_clk == 1000000) {
+     data = 0x77744302;
+     return data;
+@@ -250,7 +250,7 @@ static void ast_i2c_dev_init(struct ast_i2c_dev *i2c_dev)
+ 
+ 	/* Set AC Timing */
+ #if defined(CONFIG_ARCH_AST2400)
+-#ifndef CONFIG_YOSEMITE
++#if !defined(CONFIG_YOSEMITE) && !defined(CONFIG_YELLOWSUB)
+ 	if(i2c_dev->ast_i2c_data->bus_clk/1000 > 400) {
+ 		printk("high speed mode enable clk [%dkhz]\n",i2c_dev->ast_i2c_data->bus_clk/1000);
+ 		ast_i2c_write(i2c_dev, ast_i2c_read(i2c_dev, I2C_FUN_CTRL_REG) |
+diff --git a/drivers/net/ethernet/faraday/ftgmac100.c b/drivers/net/ethernet/faraday/ftgmac100.c
+index bc8787904e01..93c993848b62 100644
+--- a/drivers/net/ethernet/faraday/ftgmac100.c
++++ b/drivers/net/ethernet/faraday/ftgmac100.c
+@@ -2216,7 +2216,7 @@ void ncsi_start(struct net_device *dev) {
+         //TODO: This is an issue in  Get_Version_ID that always returns
+         //mezz_type to be -1, so it only calls Get_MAC_Address_bcm.
+         //It may need to work with Mlx to find a solution.
+-#if defined(CONFIG_FBY2) || defined(CONFIG_YOSEMITE)    //For multi-host NIC initialization
++#if defined(CONFIG_FBY2) || defined(CONFIG_YOSEMITE) || defined(CONFIG_YELLOWSUB)    //For multi-host NIC initialization
+         // Try Mlx first
+         Get_MAC_Address_mlx(dev);
+         Set_MAC_Affinity_mlx(dev);
+@@ -3352,7 +3352,7 @@ static int ftgmac100_open(struct net_device *netdev)
+ 	ftgmac100_start_hw(priv, 100);
+ #elif defined(CONFIG_FBTTN)
+ 	ftgmac100_start_hw(priv, 100);
+-#elif defined(CONFIG_FBY2)  || defined(CONFIG_YOSEMITE)
++#elif defined(CONFIG_FBY2)  || defined(CONFIG_YOSEMITE) || defined(CONFIG_YELLOWSUB)
+ 	ftgmac100_start_hw(priv, 100);
+ #else
+ 	ftgmac100_start_hw(priv, 10);

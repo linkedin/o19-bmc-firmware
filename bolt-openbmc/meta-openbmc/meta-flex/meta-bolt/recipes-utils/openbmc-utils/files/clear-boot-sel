@@ -1,0 +1,29 @@
+#!/bin/bash
+
+DEVMEM=/sbin/devmem
+WDT2_TMOUT_STAT_REG_OFFSET=0x30
+WDT2_TMOUT_STAT_REG_2ND_BOOT_CODE=2
+
+WDT2_CLR_TMOUT_STAT_REG_OFFSET=0x34
+WDT2_CLR_TMOUT_STATUS=1
+
+wdt_addr() {
+    echo $((0x1E785000 + $1))
+}
+
+boot_flash=0
+
+stat_reg=$(wdt_addr $WDT2_TMOUT_STAT_REG_OFFSET)
+
+clr_stat_reg=$(wdt_addr $WDT2_CLR_TMOUT_STAT_REG_OFFSET)
+
+boot=$($DEVMEM $stat_reg)
+boot=$((boot&$WDT2_TMOUT_STAT_REG_2ND_BOOT_CODE))
+
+if [ $boot -eq $WDT2_TMOUT_STAT_REG_2ND_BOOT_CODE ]; then
+  boot_flash=1
+fi
+
+echo "  Flash$boot_flash: Clearing timeout and boot code selection status"
+$DEVMEM $clr_stat_reg w $WDT2_CLR_TMOUT_STATUS
+

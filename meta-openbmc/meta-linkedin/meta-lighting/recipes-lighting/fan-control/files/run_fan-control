@@ -1,0 +1,8 @@
+#!/bin/sh
+gpio_val=$(gpio-util.sh --get J4)
+
+if [[ "$gpio_val" == 1 ]]; then  
+    echo BMC 1 - not running fan-control
+else
+    exec /usr/local/bin/fan-control
+fi

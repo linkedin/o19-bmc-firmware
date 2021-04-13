@@ -1,0 +1,25 @@
+From 2605fc13f456c50a79f5cca1b1ece42d1577b3de Mon Sep 17 00:00:00 2001
+From: Tiju Jacob <tiju.jacob@flextronics.com>
+Date: Fri, 23 Dec 2016 14:44:35 -0500
+Subject: [PATCH 1/1] Baudrate to 115200
+
+---
+ .../sol.sh         | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sol.sh b/sol.sh
+index 185d800..3cdb4e3 100755
+--- a/sol.sh
++++ b/sol.sh
+@@ -44,7 +44,7 @@ start_sol_session() {
+ 
+   trap '"$CONSOLE_SH" disconnect' INT TERM QUIT EXIT
+ 
+-  /usr/bin/microcom -s 57600 $TTY
++  /usr/bin/microcom -s 115200 $TTY
+ 
+   echo
+   echo
+-- 
+1.9.1
+

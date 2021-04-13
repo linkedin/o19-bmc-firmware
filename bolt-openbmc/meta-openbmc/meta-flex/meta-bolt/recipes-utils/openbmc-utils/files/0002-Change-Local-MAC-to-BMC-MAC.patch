@@ -1,0 +1,26 @@
+From fb53a9e8cebe7829b054ccb31e4da439c9d0797e Mon Sep 17 00:00:00 2001
+From: Adrian Brathwaite <adrian.brathwaite@flex.com>
+Date: Mon, 19 Mar 2018 15:03:56 -0700
+Subject: [PATCH] Change Local MAC to BMC MAC
+
+---
+ eth0_mac_fixup.sh | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/eth0_mac_fixup.sh b/eth0_mac_fixup.sh
+index f244bd0..e7f746b 100644
+--- a/eth0_mac_fixup.sh
++++ b/eth0_mac_fixup.sh
+@@ -30,7 +30,8 @@
+ PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
+ 
+ # get the MAC from EEPROM
+-mac=$(weutil 2>/dev/null | grep '^Local MAC' 2>/dev/null | cut -d' ' -f3 2>/dev/null)
++mac=$(id-eeprom-show 2>/dev/null | sed -n 's/^BMC MAC.* //p')
++
+ 
+ # get the MAC from u-boot environment
+ ethaddr=$(fw_printenv ethaddr 2>/dev/null | cut -d'=' -f2 2>/dev/null)
+-- 
+2.5.0
+

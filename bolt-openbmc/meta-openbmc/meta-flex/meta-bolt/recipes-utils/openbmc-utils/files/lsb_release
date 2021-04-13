@@ -1,0 +1,31 @@
+#!/bin/bash
+#
+# Copyright 2015-present Facebook. All Rights Reserved.
+#
+# This program file is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# for more details.
+#
+
+ec_ver=$(cat /sys/class/i2c-adapter/i2c-4/4-0033/version)
+ec_date=$(cat /sys/class/i2c-adapter/i2c-4/4-0033/date)
+
+SOFT_RELEASE_VERSION="v2.2.0"
+echo "OpenBMC Version      : $SOFT_RELEASE_VERSION"
+echo "System CPLD Version  : $(i2cget -f -y 12 0x31 0x01 | sed 's/0x0//g' | sed 's/0x//g').$(i2cget -f -y 12 0x31 0x02 | sed 's/0x0//g' | sed 's/0x//g')"
+echo "Fan CPLD Version     : $(i2cget -f -y 8 0x33 0x01 | sed 's/0x0//g' | sed 's/0x//g').$(i2cget -f -y 8 0x33 0x02 | sed 's/0x0//g' | sed 's/0x//g')"
+
+echo
+if [ "${ec_ver:(-4)}" == "0x80" ]; then
+  echo "COMe EC Version      : Pre-Production"
+else
+  r=$((16#${ec_ver:15:2}))
+  e=$((16#${ec_ver:22:2}))
+  echo "COMe EC Version      : R$(printf '%02d' $r).E$(printf '%02d' $e)"
+fi
+echo "COMe EC Release Date : $ec_date"

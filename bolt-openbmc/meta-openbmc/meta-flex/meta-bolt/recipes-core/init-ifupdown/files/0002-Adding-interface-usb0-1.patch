@@ -1,0 +1,25 @@
+From 6965eda3911500dbed791ce149bf5df2591ec23e Mon Sep 17 00:00:00 2001
+From: Tiju Jacob <Tiju.Jacob@flextronics.com>
+Date: Fri, 12 Aug 2016 16:20:50 -0400
+Subject: [PATCH 02/20] Adding interface usb0:1
+
+---
+ .../interfaces           | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/interfaces b/interfaces
+index 171dfdc..b821009 100644
+--- a/interfaces
++++ b/interfaces
+@@ -11,3 +11,8 @@ iface usb0 inet6 static
+   netmask 64
+   pre-up sysctl -w net.ipv6.conf.usb0.autoconf=0
+   pre-up sysctl -w net.ipv6.conf.usb0.router_solicitations=0
++
++auto usb0:1
++iface usb0:1 inet static
++  address 192.168.0.1
++  netmask 255.255.255.0
+-- 
+1.9.1
+

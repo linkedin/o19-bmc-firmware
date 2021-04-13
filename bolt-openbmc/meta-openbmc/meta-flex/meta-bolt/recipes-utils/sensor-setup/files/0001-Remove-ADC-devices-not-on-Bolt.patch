@@ -1,0 +1,31 @@
+From 97bf9d900a8ca031c8ee99d5a5e50b4aaab738f0 Mon Sep 17 00:00:00 2001
+From: Adrian Brathwaite <adrian.brathwaite@flex.com>
+Date: Thu, 21 Jun 2018 11:44:56 -0700
+Subject: [PATCH] Remove ADC devices not on Bolt
+
+---
+ .../sensor-setup.sh          | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/sensor-setup.sh b/sensor-setup.sh
+index 0027828..3cb4ce0 100644
+--- a/sensor-setup.sh
++++ b/sensor-setup.sh
+@@ -45,8 +45,9 @@ modprobe pmbus
+ # Enable the ADC inputs;  adc5 - adc9 should be connected to
+ # 1V, 1.03V, 5V, 3.3V, and 2.5V.
+ 
+-echo 1 > /sys/devices/platform/ast_adc.0/adc5_en
+-echo 1 > /sys/devices/platform/ast_adc.0/adc6_en
+-echo 1 > /sys/devices/platform/ast_adc.0/adc7_en
+-echo 1 > /sys/devices/platform/ast_adc.0/adc8_en
+-echo 1 > /sys/devices/platform/ast_adc.0/adc9_en
++# These devices are absent from Bolt
++#echo 1 > /sys/devices/platform/ast_adc.0/adc5_en
++#echo 1 > /sys/devices/platform/ast_adc.0/adc6_en
++#echo 1 > /sys/devices/platform/ast_adc.0/adc7_en
++#echo 1 > /sys/devices/platform/ast_adc.0/adc8_en
++#echo 1 > /sys/devices/platform/ast_adc.0/adc9_en
+-- 
+2.5.0
+

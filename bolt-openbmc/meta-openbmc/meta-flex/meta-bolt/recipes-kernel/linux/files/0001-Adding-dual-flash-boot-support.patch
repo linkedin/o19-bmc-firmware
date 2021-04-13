@@ -1,0 +1,340 @@
+From 73181f6f9e846f660800675ef27decf84d4141fb Mon Sep 17 00:00:00 2001
+From: Adrian Brathwaite <adrian.brathwaite@flex.com>
+Date: Tue, 19 Jun 2018 21:57:57 -0700
+Subject: [PATCH] Adding dual flash boot support
+
+---
+ arch/arm/plat-aspeed/dev-spi-fb.c | 93 +++++++++++++++++++++++++++------------
+ arch/arm/plat-aspeed/dev-spi.c    | 92 +++++++++++++++++++-------------------
+ 2 files changed, 110 insertions(+), 75 deletions(-)
+
+diff --git a/arch/arm/plat-aspeed/dev-spi-fb.c b/arch/arm/plat-aspeed/dev-spi-fb.c
+index c155199..8459fca 100644
+--- a/arch/arm/plat-aspeed/dev-spi-fb.c
++++ b/arch/arm/plat-aspeed/dev-spi-fb.c
+@@ -60,16 +60,12 @@ static u32 ast_spi_calculate_divisor(u32 max_speed_hz)
+ 
+ static struct ast_spi_driver_data ast_fmc_driver_data = {
+ 	.get_div = ast_spi_calculate_divisor,
+-	.num_chipselect = AST_FMC_CS_NUM,
++	.num_chipselect = 2,
+ };
+ 
+ static struct ast_spi_driver_data ast_spi0_driver_data = {
+     .get_div = ast_spi_calculate_divisor,
+-#if defined CONFIG_AST_SPI0_CS1
+     .num_chipselect = 2,
+-#else
+-    .num_chipselect = 1,
+-#endif
+ };
+ 
+ #if defined AST_SOC_G5
+@@ -86,7 +82,7 @@ static struct ast_spi_driver_data ast_spi1_driver_data = {
+ static struct resource ast_fmc_resource[] = {
+ 	{
+ 		.start  = AST_FMC_BASE,
+-		.end    = AST_FMC_BASE + SZ_16,
++		.end    = AST_FMC_BASE + 3,
+ 		.flags  = IORESOURCE_MEM,
+ 	},
+ 	{
+@@ -99,25 +95,6 @@ static struct resource ast_fmc_resource[] = {
+ 		.end		= AST_FMC_CS1_BASE + SZ_16,
+ 		.flags	= IORESOURCE_BUS,
+ 	},
+-	{
+-		.start	= AST_FMC_CS2_BASE,
+-		.end		= AST_FMC_CS2_BASE + SZ_16,
+-		.flags	= IORESOURCE_BUS,
+-	},
+-#ifdef AST_FMC_CS3_BASE
+-	{
+-		.start	= AST_FMC_CS3_BASE,
+-		.end		= AST_FMC_CS3_BASE + SZ_16,
+-		.flags	= IORESOURCE_BUS,
+-	},
+-#endif
+-#ifdef AST_FMC_CS4_BASE
+-	{
+-		.start	= AST_FMC_CS4_BASE,
+-		.end		= AST_FMC_CS4_BASE + SZ_16,
+-		.flags	= IORESOURCE_BUS,
+-	},
+-#endif
+ };
+ 
+ static struct resource ast_spi0_resource[] = {
+@@ -230,6 +207,36 @@ static struct mtd_partition ast_legacy_partitions[] = {
+ 	},
+ };
+ 
++static struct mtd_partition ast_legacy_partition1[] = {
++	{
++		.name       = "u-boot",
++		.offset     = 0,        /* From 0 */
++		.size       = 0x60000,  /* Size 384K */
++		.mask_flags = MTD_WRITEABLE,
++	}, {
++		.name       = "env",
++		.offset     = MTDPART_OFS_APPEND,  /* From 384K */
++		.size       = 0x20000,  /* Size 128K, two sectors */
++	}, {
++		.name       = "kernel",
++		.offset     = MTDPART_OFS_APPEND,  /* From 512K */
++		.size       = 0x400000, /* Size 4M */
++	}, {
++		.name       = "rootfs",
++		.offset     = MTDPART_OFS_APPEND,  /* From 4.5M */
++		.size       = 0x1780000, /* Size 23.5M */
++	}, {
++		.name       = "data1",
++		.offset     = MTDPART_OFS_APPEND,
++		.size       = MTDPART_SIZ_FULL,
++	},
++	{
++		.name       = "flash1",
++		.offset     = 0,        /* From 0 */
++		.size       = MTDPART_SIZ_FULL,  /* full size */
++	},
++};
++
+ static struct mtd_partition ast_rom_partitions[] = {
+ 	{
+ 		.name       = "rom",               /* ROM (SPL), recovery U-boot */
+@@ -311,6 +318,12 @@ static struct flash_platform_data ast_legacy_platform_data = {
+ 	.parts      = ast_legacy_partitions,
+ };
+ 
++static struct flash_platform_data ast_legacy1_platform_data = {
++	.type       = "mx25l25635e",
++	.nr_parts   = ARRAY_SIZE(ast_legacy_partition1),
++	.parts      = ast_legacy_partition1,
++};
++
+ /* The ROM platform data is FMC.0 (CS0) */
+ static struct flash_platform_data ast_rom_platform_data = {
+ 	.type       = "mx25l25635e",
+@@ -355,12 +368,34 @@ static struct spi_board_info ast_dual_flash_fmc_devices[] = {
+ 
+ static struct spi_board_info ast_single_flash_fmc_devices[] = {
+ 	{
+-		.modalias    		= "m25p80",
+-		.platform_data  = &ast_legacy_platform_data,
++		.modalias       = "spidev",
+ 		.chip_select    = 0,
++		.max_speed_hz   = 33 * 1000 * 1000,
++		.bus_num        = 5,
++		.mode           = SPI_MODE_0,
++	},
++	{
++		.modalias       = "spidev",
++		.chip_select    = 1,
++		.max_speed_hz   = 33 * 1000 * 1000,
++		.bus_num        = 5,
++		.mode           = SPI_MODE_0,
++	},
++	{
++		.modalias       = "m25p80",
++ 		.platform_data  = &ast_legacy_platform_data,
++ 		.chip_select    = 0,
++ 		.max_speed_hz   = 50 * 1000 * 1000,
++		.bus_num        = 0,
++		.mode           = SPI_MODE_0,
++	},
++	{
++		.modalias       = "m25p80",
++		.platform_data  = &ast_legacy1_platform_data,
++		.chip_select    = 1,
+ 		.max_speed_hz   = 50 * 1000 * 1000,
+-		.bus_num    		= 0,
+-		.mode 			    = SPI_MODE_0,
++		.bus_num        = 0,
++		.mode           = SPI_MODE_0,
+ 	},
+ };
+ 
+diff --git a/arch/arm/plat-aspeed/dev-spi.c b/arch/arm/plat-aspeed/dev-spi.c
+index 73a8619..77d12ad 100644
+--- a/arch/arm/plat-aspeed/dev-spi.c
++++ b/arch/arm/plat-aspeed/dev-spi.c
+@@ -69,13 +69,13 @@ static u32 ast_spi_calculate_divisor(u32 max_speed_hz)
+ #if defined(CONFIG_SPI_FMC) || defined(CONFIG_SPI_FMC_MODULE)
+ static struct ast_spi_driver_data fmc_spi_data = {
+ 	.get_div = ast_spi_calculate_divisor,
+-	.num_chipselect = AST_FMC_CS_NUM,
++	.num_chipselect = 2,
+ };
+ 
+ static struct resource ast_fmc_spi_resource0[] = {
+ 	{
+ 		.start	= AST_FMC_BASE,
+-		.end		= AST_FMC_BASE + SZ_16,
++		.end		= AST_FMC_BASE + 3,
+ 		.flags	= IORESOURCE_MEM,
+ 	},
+ 	{
+@@ -88,25 +88,6 @@ static struct resource ast_fmc_spi_resource0[] = {
+ 		.end		= AST_FMC_CS1_BASE + SZ_16,
+ 		.flags	= IORESOURCE_BUS,
+ 	},
+-	{
+-		.start	= AST_FMC_CS2_BASE,
+-		.end		= AST_FMC_CS2_BASE + SZ_16,
+-		.flags	= IORESOURCE_BUS,
+-	},
+-#ifdef AST_FMC_CS3_BASE
+-	{
+-		.start	= AST_FMC_CS3_BASE,
+-		.end		= AST_FMC_CS3_BASE + SZ_16,
+-		.flags	= IORESOURCE_BUS,
+-	},
+-#endif
+-#ifdef AST_FMC_CS4_BASE
+-	{
+-		.start	= AST_FMC_CS4_BASE,
+-		.end		= AST_FMC_CS4_BASE + SZ_16,
+-		.flags	= IORESOURCE_BUS,
+-	},
+-#endif
+ };
+ 
+ static struct platform_device ast_fmc0_spi_device = {
+@@ -121,7 +102,7 @@ static struct platform_device ast_fmc0_spi_device = {
+ 
+ static struct ast_spi_driver_data fmc_spix_data = {
+ 	.get_div = ast_spi_calculate_divisor,
+-	.num_chipselect = AST_FMC_SPIx_CS_NUM,
++	.num_chipselect = 2,
+ };
+ 
+ #ifdef AST_FMC_SPI0_BASE
+@@ -133,12 +114,7 @@ static struct resource ast_fmc_spi0_resource[] = {
+ 	},
+ 	{
+ 		.start	= AST_SPI0_CS0_BASE,
+-		.end		= AST_SPI0_CS0_BASE + SZ_16,
+-		.flags	= IORESOURCE_BUS,
+-	},
+-	{
+-		.start	= AST_SPI0_CS1_BASE,
+-		.end		= AST_SPI0_CS1_BASE + SZ_16,
++		.end		= AST_SPI0_CS0_BASE + 3,
+ 		.flags	= IORESOURCE_BUS,
+ 	},
+ };
+@@ -189,7 +165,7 @@ static struct platform_device ast_fmc_spi1_device = {
+ #if defined(CONFIG_SPI_AST) || defined(CONFIG_SPI_AST_MODULE)
+ static struct ast_spi_driver_data ast_spi0_data = {
+ 	.get_div = ast_spi_calculate_divisor,
+-	.num_chipselect = 1,
++	.num_chipselect = 2,
+ };
+ 
+ static struct resource ast_spi_resource0[] = {
+@@ -210,7 +186,7 @@ static struct platform_device ast_spi_device0 = {
+ #if defined(CONFIG_ARCH_AST1010)
+ 		.id 		= 0,
+ #else
+-		.id		= 1,
++		.id		= 5,
+ #endif
+ 		.dev = {
+ 			.platform_data = &ast_spi0_data,
+@@ -256,7 +232,7 @@ static struct mtd_partition ast_spi_flash0_partitions[] = {
+ 	{
+ 		.name	= "u-boot",
+ 		.offset 	= 0,
+-		.size		= 0x80000,
++		.size		= 0x60000,
+ 		.mask_flags	= MTD_WRITEABLE,
+ 	}, {
+ 		.name	= "env",
+@@ -271,9 +247,13 @@ static struct mtd_partition ast_spi_flash0_partitions[] = {
+ 		.offset 	= 0x400000,
+ 		.size		= 0x400000,
+ 	}, {
+-		.name	= "pd_rootfs",
++		.name		= "data0",
+ 		.offset 	= MTDPART_OFS_APPEND,
+ 		.size		= MTDPART_SIZ_FULL,
++	}, {
++		.name           = "upgrade",
++		.offset 	= 0,
++		.size		= MTDPART_SIZ_FULL,
+ 	},
+ };
+ 
+@@ -352,21 +332,35 @@ static struct spi_board_info ast_spi_devices[] = {
+ };
+ #else
+ static struct spi_board_info ast_spi_devices[] = {
++        {
++		.modalias               = "spidev",
++		.chip_select            = 0,
++		.max_speed_hz           = 33 * 1000 * 1000,
++		.bus_num                = 5,
++		.mode                   = SPI_MODE_0,
++	},
++        {
++		.modalias               = "spidev",
++		.chip_select            = 1,
++		.max_speed_hz           = 33 * 1000 * 1000,
++		.bus_num                = 5,
++		.mode                   = SPI_MODE_0,
++	},
+ 	{
+-		.modalias    		= "m25p80",
+-		.platform_data  	= &ast_spi_flash0_data,
+-		.chip_select    		= 0, //.chip_select This tells your device driver which chipselect to use.
+-		.max_speed_hz    	= 100 * 1000 * 1000,
+-		.bus_num    		= 0, //  This chooses if SPI0 or SPI1 of the SoC is used.
+-		.mode 			= SPI_MODE_0,
+-#if 0
+-	}, {
+-		.modalias    		= "spidev",
+-		.chip_select    		= 0,
+-		.max_speed_hz    	= 30 * 1000 * 1000,
+-		.bus_num    		= 0,
+-		.mode 			= SPI_MODE_0,
+-#endif
++		.modalias               = "m25p80",
++		.platform_data          = &ast_spi_flash0_data,
++		.chip_select            = 0, //.chip_select This tells your device driver which chipselect to use.
++		.max_speed_hz           = 50 * 1000 * 1000, 
++		.bus_num                = 0, //  This chooses if SPI0 or SPI1 of the SoC is used.
++		.mode                   = SPI_MODE_0,
++	}, 
++	{
++		.modalias               = "m25p80",
++		.platform_data          = &ast_spi_flash0_data,
++		.chip_select            = 1, //.chip_select This tells your device driver which chipselect to use.
++		.max_speed_hz           = 50 * 1000 * 1000, 
++		.bus_num                = 0, //  This chooses if SPI0 or SPI1 of the SoC is used.
++		.mode                   = SPI_MODE_0,
+ 	},
+ };
+ 
+@@ -418,6 +412,10 @@ static struct spi_board_info ast_spi1_devices[] = {
+ void __init ast_add_device_spi(void)
+ {
+ #if defined(CONFIG_SPI_FMC) || defined(CONFIG_SPI_FMC_MODULE)
++        void __iomem *wdt_regs = ioremap(AST_WDT_BASE, SZ_16);
++
++        writel(1,wdt_regs + 0x34);
++
+ 	platform_device_register(&ast_fmc0_spi_device);
+ 	spi_register_board_info(ast_spi_devices, ARRAY_SIZE(ast_spi_devices));
+ #endif
+@@ -426,6 +424,8 @@ void __init ast_add_device_spi(void)
+ //	platform_device_register(&ast_fmc_spi1_device);
+ //	spi_register_board_info(ast_spi1_devices, ARRAY_SIZE(ast_spi1_devices));
+ 
++        iounmap(wdt_regs);
++
+ #if defined(CONFIG_SPI_AST) || defined(CONFIG_SPI_AST_MODULE)
+ 	//pin switch by trap[13:12]	-- [0:1] Enable SPI Master
+ 	platform_device_register(&ast_spi_device0);
+-- 
+2.5.0
+

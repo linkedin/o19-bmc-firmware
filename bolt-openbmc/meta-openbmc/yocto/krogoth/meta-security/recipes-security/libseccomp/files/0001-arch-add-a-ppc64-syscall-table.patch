@@ -1,0 +1,1253 @@
+From a44e4f1fd956dd3250976deaa03c3c9ef1c2688a Mon Sep 17 00:00:00 2001
+From: Paul Moore <pmoore@redhat.com>
+Date: Thu, 25 Sep 2014 16:28:38 -0400
+Subject: [PATCH 01/11] arch: add a ppc64 syscall table
+
+Signed-off-by: Paul Moore <pmoore@redhat.com>
+---
+ include/seccomp.h.in          |  44 ++++
+ src/Makefile.am               |   3 +-
+ src/arch-aarch64-syscalls.c   |   7 +
+ src/arch-arm-syscalls.c       |   7 +
+ src/arch-mips-syscalls.c      |   7 +
+ src/arch-mips64-syscalls.c    |   7 +
+ src/arch-mips64n32-syscalls.c |   7 +
+ src/arch-ppc64-syscalls.c     | 502 ++++++++++++++++++++++++++++++++++++++++++
+ src/arch-ppc64.c              |  40 ++++
+ src/arch-ppc64.h              |  39 ++++
+ src/arch-syscall-check.c      |  18 +-
+ src/arch-syscall-dump.c       |   9 +-
+ src/arch-syscall-validate     |  31 ++-
+ src/arch-x32-syscalls.c       |   7 +
+ src/arch-x86-syscalls.c       |   7 +
+ src/arch-x86_64-syscalls.c    |   7 +
+ tools/util.h                  |   4 +
+ 17 files changed, 739 insertions(+), 7 deletions(-)
+ create mode 100644 src/arch-ppc64-syscalls.c
+ create mode 100644 src/arch-ppc64.c
+ create mode 100644 src/arch-ppc64.h
+
+diff --git a/include/seccomp.h.in b/include/seccomp.h.in
+index 6a115d1..42f3f1a 100644
+--- a/include/seccomp.h.in
++++ b/include/seccomp.h.in
+@@ -151,6 +151,15 @@ struct scmp_arg_cmp {
+ #define SCMP_ARCH_MIPSEL64N32	AUDIT_ARCH_MIPSEL64N32
+ 
+ /**
++ * The PowerPC architecture tokens
++ */
++#define SCMP_ARCH_PPC64		AUDIT_ARCH_PPC64
++#ifndef AUDIT_ARCH_PPC64LE
++#define AUDIT_ARCH_PPC64LE	(EM_PPC64|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
++#endif
++#define SCMP_ARCH_PPC64LE	AUDIT_ARCH_PPC64LE
++
++/**
+  * Convert a syscall name into the associated syscall number
+  * @param x the syscall name
+  */
+@@ -1424,6 +1433,41 @@ int seccomp_export_bpf(const scmp_filter_ctx ctx, int fd);
+ #define __NR_utimes		__PNR_utimes
+ #endif /* __NR_utimes */
+ 
++#define __PNR_multiplexer	-10180
++#ifndef __NR_multiplexer
++#define __NR_multiplexer	__PNR_multiplexer
++#endif /* __NR_multiplexer */
++
++#define __PNR_rtas		-10181
++#ifndef __NR_rtas
++#define __NR_rtas		__PNR_rtas
++#endif /* __NR_rtas */
++
++#define __PNR_spu_create	-10182
++#ifndef __NR_spu_create
++#define __NR_spu_create		__PNR_spu_create
++#endif /* __NR_spu_create */
++
++#define __PNR_spu_run		-10183
++#ifndef __NR_spu_run
++#define __NR_spu_run		__PNR_spu_run
++#endif /* __NR_spu_run */
++
++#define __PNR_subpage_prot	-10184
++#ifndef __NR_subpage_prot
++#define __NR_subpage_prot	__PNR_subpage_prot
++#endif /* __NR_subpage_prot */
++
++#define __PNR_swapcontext	-10185
++#ifndef __NR_swapcontext
++#define __NR_swapcontext	__PNR_swapcontext
++#endif /* __NR_swapcontext */
++
++#define __PNR_sys_debug_setcontext	-10186
++#ifndef __NR_sys_debug_setcontext
++#define __NR_sys_debug_setcontext	__PNR_sys_debug_setcontext
++#endif /* __NR_sys_debug_setcontext */
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/src/Makefile.am b/src/Makefile.am
+index d8fbd85..038b2ef 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -30,7 +30,8 @@ SOURCES_ARCH = \
+ 	arch-aarch64.h arch-aarch64.c arch-aarch64-syscalls.c \
+ 	arch-mips.h arch-mips.c arch-mips-syscalls.c \
+ 	arch-mips64.h arch-mips64.c arch-mips64-syscalls.c \
+-	arch-mips64n32.h arch-mips64n32.c arch-mips64n32-syscalls.c
++	arch-mips64n32.h arch-mips64n32.c arch-mips64n32-syscalls.c \
++	arch-ppc64.h arch-ppc64.c arch-ppc64-syscalls.c
+ 
+ SOURCES_GEN = \
+ 	api.c system.h system.c \
+diff --git a/src/arch-aarch64-syscalls.c b/src/arch-aarch64-syscalls.c
+index f17172e..c76dae7 100644
+--- a/src/arch-aarch64-syscalls.c
++++ b/src/arch-aarch64-syscalls.c
+@@ -223,6 +223,7 @@ const struct arch_syscall_def aarch64_syscall_table[] = { \
+ 	{ "msgrcv", 188 },
+ 	{ "msgsnd", 189 },
+ 	{ "msync", 227 },
++	{ "multiplexer", __PNR_multiplexer },
+ 	{ "munlock", 229 },
+ 	{ "munlockall", 231 },
+ 	{ "munmap", 215 },
+@@ -293,6 +294,7 @@ const struct arch_syscall_def aarch64_syscall_table[] = { \
+ 	{ "rt_sigsuspend", 133 },
+ 	{ "rt_sigtimedwait", 137 },
+ 	{ "rt_tgsigqueueinfo", 240 },
++	{ "rtas", __PNR_rtas },
+ 	{ "sched_get_priority_max", 125 },
+ 	{ "sched_get_priority_min", 126 },
+ 	{ "sched_getaffinity", 123 },
+@@ -370,6 +372,8 @@ const struct arch_syscall_def aarch64_syscall_table[] = { \
+ 	{ "socketcall", __PNR_socketcall },
+ 	{ "socketpair", 199 },
+ 	{ "splice", 76 },
++	{ "spu_create", __PNR_spu_create },
++	{ "spu_run", __PNR_spu_run },
+ 	{ "ssetmask", __PNR_ssetmask },
+ 	{ "stat", __PNR_stat },
+ 	{ "stat64", __PNR_stat64 },
+@@ -377,6 +381,8 @@ const struct arch_syscall_def aarch64_syscall_table[] = { \
+ 	{ "statfs64", __PNR_statfs64 },
+ 	{ "stime", __PNR_stime },
+ 	{ "stty", __PNR_stty },
++	{ "subpage_prot", __PNR_subpage_prot },
++	{ "swapcontext", __PNR_swapcontext },
+ 	{ "swapoff", 225 },
+ 	{ "swapon", 224 },
+ 	{ "symlink", __PNR_symlink },
+@@ -386,6 +392,7 @@ const struct arch_syscall_def aarch64_syscall_table[] = { \
+ 	{ "sync_file_range2", __PNR_sync_file_range2 },
+ 	{ "syncfs", 267 },
+ 	{ "syscall", __PNR_syscall },
++	{ "sys_debug_setcontext", __PNR_sys_debug_setcontext },
+ 	{ "sysfs", __PNR_sysfs },
+ 	{ "sysinfo", 179 },
+ 	{ "syslog", 116 },
+diff --git a/src/arch-arm-syscalls.c b/src/arch-arm-syscalls.c
+index 8876135..b9400a3 100644
+--- a/src/arch-arm-syscalls.c
++++ b/src/arch-arm-syscalls.c
+@@ -234,6 +234,7 @@ const struct arch_syscall_def arm_syscall_table[] = { \
+ 	{ "msgrcv", (__NR_SYSCALL_BASE + 302) },
+ 	{ "msgsnd", (__NR_SYSCALL_BASE + 301) },
+ 	{ "msync", (__NR_SYSCALL_BASE + 144) },
++	{ "multiplexer", __PNR_multiplexer },
+ 	{ "munlock", (__NR_SYSCALL_BASE + 151) },
+ 	{ "munlockall", (__NR_SYSCALL_BASE + 153) },
+ 	{ "munmap", (__NR_SYSCALL_BASE + 91) },
+@@ -304,6 +305,7 @@ const struct arch_syscall_def arm_syscall_table[] = { \
+ 	{ "rt_sigsuspend", (__NR_SYSCALL_BASE + 179) },
+ 	{ "rt_sigtimedwait", (__NR_SYSCALL_BASE + 177) },
+ 	{ "rt_tgsigqueueinfo", (__NR_SYSCALL_BASE + 363) },
++	{ "rtas", __PNR_rtas },
+ 	{ "sched_get_priority_max", (__NR_SYSCALL_BASE + 159) },
+ 	{ "sched_get_priority_min", (__NR_SYSCALL_BASE + 160) },
+ 	{ "sched_getaffinity", (__NR_SYSCALL_BASE + 242) },
+@@ -381,6 +383,8 @@ const struct arch_syscall_def arm_syscall_table[] = { \
+ 	{ "socketcall", (__NR_SYSCALL_BASE + 102) },
+ 	{ "socketpair", (__NR_SYSCALL_BASE + 288) },
+ 	{ "splice", (__NR_SYSCALL_BASE + 340) },
++	{ "spu_create", __PNR_spu_create },
++	{ "spu_run", __PNR_spu_run },
+ 	{ "ssetmask", __PNR_ssetmask },
+ 	{ "stat", (__NR_SYSCALL_BASE + 106) },
+ 	{ "stat64", (__NR_SYSCALL_BASE + 195) },
+@@ -388,6 +392,8 @@ const struct arch_syscall_def arm_syscall_table[] = { \
+ 	{ "statfs64", (__NR_SYSCALL_BASE + 266) },
+ 	{ "stime", (__NR_SYSCALL_BASE + 25) },
+ 	{ "stty", __PNR_stty },
++	{ "subpage_prot", __PNR_subpage_prot },
++	{ "swapcontext", __PNR_swapcontext },
+ 	{ "swapoff", (__NR_SYSCALL_BASE + 115) },
+ 	{ "swapon", (__NR_SYSCALL_BASE + 87) },
+ 	{ "symlink", (__NR_SYSCALL_BASE + 83) },
+@@ -397,6 +403,7 @@ const struct arch_syscall_def arm_syscall_table[] = { \
+ 	{ "sync_file_range2", (__NR_SYSCALL_BASE + 341) },
+ 	{ "syncfs", (__NR_SYSCALL_BASE + 373) },
+ 	{ "syscall", (__NR_SYSCALL_BASE + 113) },
++	{ "sys_debug_setcontext", __PNR_sys_debug_setcontext },
+ 	{ "sysfs", (__NR_SYSCALL_BASE + 135) },
+ 	{ "sysinfo", (__NR_SYSCALL_BASE + 116) },
+ 	{ "syslog", (__NR_SYSCALL_BASE + 103) },
+diff --git a/src/arch-mips-syscalls.c b/src/arch-mips-syscalls.c
+index 29831da..c318aa0 100644
+--- a/src/arch-mips-syscalls.c
++++ b/src/arch-mips-syscalls.c
+@@ -227,6 +227,7 @@ const struct arch_syscall_def mips_syscall_table[] = { \
+ 	{ "msgrcv", __PNR_msgrcv },
+ 	{ "msgsnd", __PNR_msgsnd },
+ 	{ "msync", (__NR_SYSCALL_BASE + 144) },
++	{ "multiplexer", __PNR_multiplexer },
+ 	{ "munlock", (__NR_SYSCALL_BASE + 155) },
+ 	{ "munlockall", (__NR_SYSCALL_BASE + 157) },
+ 	{ "munmap", (__NR_SYSCALL_BASE + 91) },
+@@ -297,6 +298,7 @@ const struct arch_syscall_def mips_syscall_table[] = { \
+ 	{ "rt_sigsuspend", (__NR_SYSCALL_BASE + 199) },
+ 	{ "rt_sigtimedwait", (__NR_SYSCALL_BASE + 197) },
+ 	{ "rt_tgsigqueueinfo", (__NR_SYSCALL_BASE + 332) },
++	{ "rtas", __PNR_rtas },
+ 	{ "sched_get_priority_max", (__NR_SYSCALL_BASE + 163) },
+ 	{ "sched_get_priority_min", (__NR_SYSCALL_BASE + 164) },
+ 	{ "sched_getaffinity", (__NR_SYSCALL_BASE + 240) },
+@@ -374,6 +376,8 @@ const struct arch_syscall_def mips_syscall_table[] = { \
+ 	{ "socketcall", (__NR_SYSCALL_BASE + 102) },
+ 	{ "socketpair", (__NR_SYSCALL_BASE + 184) },
+ 	{ "splice", (__NR_SYSCALL_BASE + 304) },
++	{ "spu_create", __PNR_spu_create },
++	{ "spu_run", __PNR_spu_run },
+ 	{ "ssetmask", (__NR_SYSCALL_BASE + 69) },
+ 	{ "stat", (__NR_SYSCALL_BASE + 106) },
+ 	{ "stat64", (__NR_SYSCALL_BASE + 213) },
+@@ -381,6 +385,8 @@ const struct arch_syscall_def mips_syscall_table[] = { \
+ 	{ "statfs64", (__NR_SYSCALL_BASE + 255) },
+ 	{ "stime", (__NR_SYSCALL_BASE + 25) },
+ 	{ "stty", (__NR_SYSCALL_BASE + 31) },
++	{ "subpage_prot", __PNR_subpage_prot },
++	{ "swapcontext", __PNR_swapcontext },
+ 	{ "swapoff", (__NR_SYSCALL_BASE + 115) },
+ 	{ "swapon", (__NR_SYSCALL_BASE + 87) },
+ 	{ "symlink", (__NR_SYSCALL_BASE + 83) },
+@@ -390,6 +396,7 @@ const struct arch_syscall_def mips_syscall_table[] = { \
+ 	{ "sync_file_range2", __PNR_sync_file_range2 },
+ 	{ "syncfs", (__NR_SYSCALL_BASE + 342) },
+ 	{ "syscall", (__NR_SYSCALL_BASE + 0) },
++	{ "sys_debug_setcontext", __PNR_sys_debug_setcontext },
+ 	{ "sysfs", (__NR_SYSCALL_BASE + 135) },
+ 	{ "sysinfo", (__NR_SYSCALL_BASE + 116) },
+ 	{ "syslog", (__NR_SYSCALL_BASE + 103) },
+diff --git a/src/arch-mips64-syscalls.c b/src/arch-mips64-syscalls.c
+index 8b1fe9e..007a472 100644
+--- a/src/arch-mips64-syscalls.c
++++ b/src/arch-mips64-syscalls.c
+@@ -227,6 +227,7 @@ const struct arch_syscall_def mips64_syscall_table[] = { \
+ 	{ "msgrcv", (__NR_SYSCALL_BASE + 68) },
+ 	{ "msgsnd", (__NR_SYSCALL_BASE + 67) },
+ 	{ "msync", (__NR_SYSCALL_BASE + 25) },
++	{ "multiplexer", __PNR_multiplexer },
+ 	{ "munlock", (__NR_SYSCALL_BASE + 147) },
+ 	{ "munlockall", (__NR_SYSCALL_BASE + 149) },
+ 	{ "munmap", (__NR_SYSCALL_BASE + 11) },
+@@ -297,6 +298,7 @@ const struct arch_syscall_def mips64_syscall_table[] = { \
+ 	{ "rt_sigsuspend", (__NR_SYSCALL_BASE + 128) },
+ 	{ "rt_sigtimedwait", (__NR_SYSCALL_BASE + 126) },
+ 	{ "rt_tgsigqueueinfo", (__NR_SYSCALL_BASE + 291) },
++	{ "rtas", __PNR_rtas },
+ 	{ "sched_get_priority_max", (__NR_SYSCALL_BASE + 143) },
+ 	{ "sched_get_priority_min", (__NR_SYSCALL_BASE + 144) },
+ 	{ "sched_getaffinity", (__NR_SYSCALL_BASE + 196) },
+@@ -374,6 +376,8 @@ const struct arch_syscall_def mips64_syscall_table[] = { \
+ 	{ "socketcall", __PNR_socketcall },
+ 	{ "socketpair", (__NR_SYSCALL_BASE + 52) },
+ 	{ "splice", (__NR_SYSCALL_BASE + 263) },
++	{ "spu_create", __PNR_spu_create },
++	{ "spu_run", __PNR_spu_run },
+ 	{ "ssetmask", __PNR_ssetmask },
+ 	{ "stat", (__NR_SYSCALL_BASE + 4) },
+ 	{ "stat64", __PNR_stat64 },
+@@ -381,6 +385,8 @@ const struct arch_syscall_def mips64_syscall_table[] = { \
+ 	{ "statfs64", __PNR_statfs64 },
+ 	{ "stime", __PNR_stime },
+ 	{ "stty", __PNR_stty },
++	{ "subpage_prot", __PNR_subpage_prot },
++	{ "swapcontext", __PNR_swapcontext },
+ 	{ "swapoff", (__NR_SYSCALL_BASE + 163) },
+ 	{ "swapon", (__NR_SYSCALL_BASE + 162) },
+ 	{ "symlink", (__NR_SYSCALL_BASE + 86) },
+@@ -390,6 +396,7 @@ const struct arch_syscall_def mips64_syscall_table[] = { \
+ 	{ "sync_file_range2", __PNR_sync_file_range2 },
+ 	{ "syncfs", (__NR_SYSCALL_BASE + 301) },
+ 	{ "syscall", __PNR_syscall },
++	{ "sys_debug_setcontext", __PNR_sys_debug_setcontext },
+ 	{ "sysfs", (__NR_SYSCALL_BASE + 136) },
+ 	{ "sysinfo", (__NR_SYSCALL_BASE + 97) },
+ 	{ "syslog", (__NR_SYSCALL_BASE + 101) },
+diff --git a/src/arch-mips64n32-syscalls.c b/src/arch-mips64n32-syscalls.c
+index da72899..ae1c9b8 100644
+--- a/src/arch-mips64n32-syscalls.c
++++ b/src/arch-mips64n32-syscalls.c
+@@ -227,6 +227,7 @@ const struct arch_syscall_def mips64n32_syscall_table[] = { \
+ 	{ "msgrcv", (__NR_SYSCALL_BASE + 68) },
+ 	{ "msgsnd", (__NR_SYSCALL_BASE + 67) },
+ 	{ "msync", (__NR_SYSCALL_BASE + 25) },
++	{ "multiplexer", __PNR_multiplexer },
+ 	{ "munlock", (__NR_SYSCALL_BASE + 147) },
+ 	{ "munlockall", (__NR_SYSCALL_BASE + 149) },
+ 	{ "munmap", (__NR_SYSCALL_BASE + 11) },
+@@ -297,6 +298,7 @@ const struct arch_syscall_def mips64n32_syscall_table[] = { \
+ 	{ "rt_sigsuspend", (__NR_SYSCALL_BASE + 128) },
+ 	{ "rt_sigtimedwait", (__NR_SYSCALL_BASE + 126) },
+ 	{ "rt_tgsigqueueinfo", (__NR_SYSCALL_BASE + 295) },
++	{ "rtas", __PNR_rtas },
+ 	{ "sched_get_priority_max", (__NR_SYSCALL_BASE + 143) },
+ 	{ "sched_get_priority_min", (__NR_SYSCALL_BASE + 144) },
+ 	{ "sched_getaffinity", (__NR_SYSCALL_BASE + 196) },
+@@ -374,6 +376,8 @@ const struct arch_syscall_def mips64n32_syscall_table[] = { \
+ 	{ "socketcall", __PNR_socketcall },
+ 	{ "socketpair", (__NR_SYSCALL_BASE + 52) },
+ 	{ "splice", (__NR_SYSCALL_BASE + 267) },
++	{ "spu_create", __PNR_spu_create },
++	{ "spu_run", __PNR_spu_run },
+ 	{ "ssetmask", __PNR_ssetmask },
+ 	{ "stat", (__NR_SYSCALL_BASE + 4) },
+ 	{ "stat64", __PNR_stat64 },
+@@ -381,6 +385,8 @@ const struct arch_syscall_def mips64n32_syscall_table[] = { \
+ 	{ "statfs64", (__NR_SYSCALL_BASE + 217) },
+ 	{ "stime", __PNR_stime },
+ 	{ "stty", __PNR_stty },
++	{ "subpage_prot", __PNR_subpage_prot },
++	{ "swapcontext", __PNR_swapcontext },
+ 	{ "swapoff", (__NR_SYSCALL_BASE + 163) },
+ 	{ "swapon", (__NR_SYSCALL_BASE + 162) },
+ 	{ "symlink", (__NR_SYSCALL_BASE + 86) },
+@@ -390,6 +396,7 @@ const struct arch_syscall_def mips64n32_syscall_table[] = { \
+ 	{ "sync_file_range2", __PNR_sync_file_range2 },
+ 	{ "syncfs", (__NR_SYSCALL_BASE + 306) },
+ 	{ "syscall", __PNR_syscall },
++	{ "sys_debug_setcontext", __PNR_sys_debug_setcontext },
+ 	{ "sysfs", (__NR_SYSCALL_BASE + 136) },
+ 	{ "sysinfo", (__NR_SYSCALL_BASE + 97) },
+ 	{ "syslog", (__NR_SYSCALL_BASE + 101) },
+diff --git a/src/arch-ppc64-syscalls.c b/src/arch-ppc64-syscalls.c
+new file mode 100644
+index 0000000..5dfb367
+--- /dev/null
++++ b/src/arch-ppc64-syscalls.c
+@@ -0,0 +1,502 @@
++/**
++ * Enhanced Seccomp PPC64 Specific Code
++ *
++ * Copyright (c) 2014 Red Hat <pmoore@redhat.com>
++ * Author: Paul Moore <pmoore@redhat.com>
++ *
++ */
++
++/*
++ * This library is free software; you can redistribute it and/or modify it
++ * under the terms of version 2.1 of the GNU Lesser General Public License as
++ * published by the Free Software Foundation.
++ *
++ * This library is distributed in the hope that it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License
++ * for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public License
++ * along with this library; if not, see <http://www.gnu.org/licenses>.
++ */
++
++#include <string.h>
++
++#include <seccomp.h>
++
++#include "arch.h"
++#include "arch-ppc64.h"
++
++/* NOTE: based on Linux 3.17-rc6+ */
++const struct arch_syscall_def ppc64_syscall_table[] = { \
++	{ "_llseek", 140 },
++	{ "_newselect", 142 },
++	{ "_sysctl", 149 },
++	{ "accept", 330 },
++	{ "accept4", 344 },
++	{ "access", 33 },
++	{ "acct", 51 },
++	{ "add_key", 269 },
++	{ "adjtimex", 124 },
++	{ "afs_syscall", 137 },
++	{ "alarm", 27 },
++	{ "arm_fadvise64_64", __PNR_arm_fadvise64_64 },
++	{ "arm_sync_file_range", __PNR_arm_sync_file_range },
++	{ "arch_prctl", __PNR_arch_prctl },
++	{ "bdflush", 134 },
++	{ "bind", 327 },
++	{ "break", 17 },
++	{ "brk", 45 },
++	{ "cachectl", __PNR_cachectl },
++	{ "cacheflush", __PNR_cacheflush },
++	{ "capget", 183 },
++	{ "capset", 184 },
++	{ "chdir", 12 },
++	{ "chmod", 15 },
++	{ "chown", 181 },
++	{ "chown32", __PNR_chown32 },
++	{ "chroot", 61 },
++	{ "clock_adjtime", 347 },
++	{ "clock_getres", 247 },
++	{ "clock_gettime", 246 },
++	{ "clock_nanosleep", 248 },
++	{ "clock_settime", 245 },
++	{ "clone", 120 },
++	{ "close", 6 },
++	{ "connect", 328 },
++	{ "creat", 8 },
++	{ "create_module", 127 },
++	{ "delete_module", 129 },
++	{ "dup", 41 },
++	{ "dup2", 63 },
++	{ "dup3", 316 },
++	{ "epoll_create", 236 },
++	{ "epoll_create1", 315 },
++	{ "epoll_ctl", 237 },
++	{ "epoll_ctl_old", __PNR_epoll_ctl_old },
++	{ "epoll_pwait", 303 },
++	{ "epoll_wait", 238 },
++	{ "epoll_wait_old", __PNR_epoll_wait_old },
++	{ "eventfd", 307 },
++	{ "eventfd2", 314 },
++	{ "execve", 11 },
++	{ "exit", 1 },
++	{ "exit_group", 234 },
++	{ "faccessat", 298 },
++	{ "fadvise64", 233 },
++	{ "fadvise64_64", 254 },
++	{ "fallocate", 309 },
++	{ "fanotify_init", 323 },
++	{ "fanotify_mark", 324 },
++	{ "fchdir", 133 },
++	{ "fchmod", 94 },
++	{ "fchmodat", 297 },
++	{ "fchown", 95 },
++	{ "fchown32", __PNR_fchown32 },
++	{ "fchownat", 289 },
++	{ "fcntl", 55 },
++	{ "fcntl64", 204 },
++	{ "fdatasync", 148 },
++	{ "fgetxattr", 214 },
++	{ "finit_module", 353 },
++	{ "flistxattr", 217 },
++	{ "flock", 143 },
++	{ "fork", 2 },
++	{ "fremovexattr", 220 },
++	{ "fsetxattr", 211 },
++	{ "fstat", 108 },
++	{ "fstat64", 197 },
++	{ "fstatat64", 291 },
++	{ "fstatfs", 100 },
++	{ "fstatfs64", 253 },
++	{ "fsync", 118 },
++	{ "ftime", 35 },
++	{ "ftruncate", 93 },
++	{ "ftruncate64", 194 },
++	{ "futex", 221 },
++	{ "futimesat", 290 },
++	{ "get_kernel_syms", 130 },
++	{ "get_mempolicy", 260 },
++	{ "get_robust_list", 299 },
++	{ "get_thread_area", __PNR_get_thread_area },
++	{ "getcpu", 302 },
++	{ "getcwd", 182 },
++	{ "getdents", 141 },
++	{ "getdents64", 202 },
++	{ "getegid", 50 },
++	{ "getegid32", __PNR_getegid32 },
++	{ "geteuid", 49 },
++	{ "geteuid32", __PNR_geteuid32 },
++	{ "getgid", 47 },
++	{ "getgid32", __PNR_getgid32 },
++	{ "getgroups", 80 },
++	{ "getgroups32", __PNR_getgroups32 },
++	{ "getitimer", 105 },
++	{ "getpeername", 332 },
++	{ "getpgid", 132 },
++	{ "getpgrp", 65 },
++	{ "getpid", 20 },
++	{ "getpmsg", 187 },
++	{ "getppid", 64 },
++	{ "getpriority", 96 },
++	{ "getrandom", 359 },
++	{ "getresgid", 170 },
++	{ "getresgid32", __PNR_getresgid32 },
++	{ "getresuid", 165 },
++	{ "getresuid32", __PNR_getresuid32 },
++	{ "getrlimit", 76 },
++	{ "getrusage", 77 },
++	{ "getsid", 147 },
++	{ "getsockname", 331 },
++	{ "getsockopt", 340 },
++	{ "gettid", 207 },
++	{ "gettimeofday", 78 },
++	{ "getuid", 24 },
++	{ "getuid32", __PNR_getuid32 },
++	{ "getxattr", 212 },
++	{ "gtty", 32 },
++	{ "idle", 112 },
++	{ "init_module", 128 },
++	{ "inotify_add_watch", 276 },
++	{ "inotify_init", 275 },
++	{ "inotify_init1", 318 },
++	{ "inotify_rm_watch", 277 },
++	{ "io_cancel", 231 },
++	{ "io_destroy", 228 },
++	{ "io_getevents", 229 },
++	{ "io_setup", 227 },
++	{ "io_submit", 230 },
++	{ "ioctl", 54 },
++	{ "ioperm", 101 },
++	{ "iopl", 110 },
++	{ "ioprio_get", 274 },
++	{ "ioprio_set", 273 },
++	{ "ipc", 117 },
++	{ "kcmp", 354 },
++	{ "kexec_file_load", __PNR_kexec_file_load },
++	{ "kexec_load", 268 },
++	{ "keyctl", 271 },
++	{ "kill", 37 },
++	{ "lchown", 16 },
++	{ "lchown32", __PNR_lchown32 },
++	{ "lgetxattr", 213 },
++	{ "link", 9 },
++	{ "linkat", 294 },
++	{ "listen", 329 },
++	{ "listxattr", 215 },
++	{ "llistxattr", 216 },
++	{ "lock", 53 },
++	{ "lookup_dcookie", 235 },
++	{ "lremovexattr", 219 },
++	{ "lseek", 19 },
++	{ "lsetxattr", 210 },
++	{ "lstat", 107 },
++	{ "lstat64", 196 },
++	{ "madvise", 205 },
++	{ "mbind", 259 },
++	{ "memfd_create", 360 },
++	{ "migrate_pages", 258 },
++	{ "mincore", 206 },
++	{ "mkdir", 39 },
++	{ "mkdirat", 287 },
++	{ "mknod", 14 },
++	{ "mknodat", 288 },
++	{ "mlock", 150 },
++	{ "mlockall", 152 },
++	{ "mmap", 90 },
++	{ "mmap2", 192 },
++	{ "modify_ldt", 123 },
++	{ "mount", 21 },
++	{ "move_pages", 301 },
++	{ "mprotect", 125 },
++	{ "mpx", 56 },
++	{ "mq_getsetattr", 267 },
++	{ "mq_notify", 266 },
++	{ "mq_open", 262 },
++	{ "mq_timedreceive", 265 },
++	{ "mq_timedsend", 264 },
++	{ "mq_unlink", 263 },
++	{ "mremap", 163 },
++	{ "msgctl", __PNR_msgctl },
++	{ "msgget", __PNR_msgget },
++	{ "msgrcv", __PNR_msgrcv },
++	{ "msgsnd", __PNR_msgsnd },
++	{ "msync", 144 },
++	{ "multiplexer", 201 },
++	{ "munlock", 151 },
++	{ "munlockall", 153 },
++	{ "munmap", 91 },
++	{ "name_to_handle_at", 345 },
++	{ "nanosleep", 162 },
++	{ "newfstatat", __PNR_newfstatat },
++	{ "nfsservctl", 168 },
++	{ "nice", 34 },
++	{ "oldfstat", 28 },
++	{ "oldlstat", 84 },
++	{ "oldolduname", 59 },
++	{ "oldstat", 18 },
++	{ "olduname", 109 },
++	{ "oldwait4", __PNR_oldwait4 },
++	{ "open", 5 },
++	{ "open_by_handle_at", 346 },
++	{ "openat", 286 },
++	{ "pause", 29 },
++	{ "pciconfig_iobase", 200 },
++	{ "pciconfig_read", 198 },
++	{ "pciconfig_write", 199 },
++	{ "perf_event_open", 319 },
++	{ "personality", 136 },
++	{ "pipe", 42 },
++	{ "pipe2", 317 },
++	{ "pivot_root", 203 },
++	{ "poll", 167 },
++	{ "ppoll", 281 },
++	{ "prctl", 171 },
++	{ "pread64", 179 },
++	{ "preadv", 320 },
++	{ "prlimit64", 325 },
++	{ "process_vm_readv", 351 },
++	{ "process_vm_writev", 352 },
++	{ "prof", 44 },
++	{ "profil", 98 },
++	{ "pselect6", 280 },
++	{ "ptrace", 26 },
++	{ "putpmsg", 188 },
++	{ "pwrite64", 180 },
++	{ "pwritev", 321 },
++	{ "query_module", 166 },
++	{ "quotactl", 131 },
++	{ "read", 3 },
++	{ "readahead", 191 },
++	{ "readdir", 89 },
++	{ "readlink", 85 },
++	{ "readlinkat", 296 },
++	{ "readv", 145 },
++	{ "reboot", 88 },
++	{ "recv", 336 },
++	{ "recvfrom", 337 },
++	{ "recvmmsg", 343 },
++	{ "recvmsg", 342 },
++	{ "remap_file_pages", 239 },
++	{ "removexattr", 218 },
++	{ "rename", 38 },
++	{ "renameat", 293 },
++	{ "renameat2", 357 },
++	{ "request_key", 270 },
++	{ "restart_syscall", 0 },
++	{ "rmdir", 40 },
++	{ "rt_sigaction", 173 },
++	{ "rt_sigpending", 175 },
++	{ "rt_sigprocmask", 174 },
++	{ "rt_sigqueueinfo", 177 },
++	{ "rt_sigreturn", 172 },
++	{ "rt_sigsuspend", 178 },
++	{ "rt_sigtimedwait", 176 },
++	{ "rt_tgsigqueueinfo", 322 },
++	{ "rtas", 255 },
++	{ "sched_get_priority_max", 159 },
++	{ "sched_get_priority_min", 160 },
++	{ "sched_getaffinity", 223 },
++	{ "sched_getattr", 356 },
++	{ "sched_getparam", 155 },
++	{ "sched_getscheduler", 157 },
++	{ "sched_rr_get_interval", 161 },
++	{ "sched_setaffinity", 222 },
++	{ "sched_setattr", 355 },
++	{ "sched_setparam", 154 },
++	{ "sched_setscheduler", 156 },
++	{ "sched_yield", 158 },
++	{ "seccomp", 358 },
++	{ "security", __PNR_security },
++	{ "select", 82 },
++	{ "semctl", __PNR_semctl },
++	{ "semget", __PNR_semget },
++	{ "semop", __PNR_semop },
++	{ "semtimedop", __PNR_semtimedop },
++	{ "send", 334 },
++	{ "sendfile", 186 },
++	{ "sendfile64", 226 },
++	{ "sendmmsg", 349 },
++	{ "sendmsg", 341 },
++	{ "sendto", 335 },
++	{ "set_mempolicy", 261 },
++	{ "set_robust_list", 300 },
++	{ "set_thread_area", __PNR_set_thread_area },
++	{ "set_tid_address", 232 },
++	{ "setdomainname", 121 },
++	{ "setfsgid", 139 },
++	{ "setfsgid32", __PNR_setfsgid32 },
++	{ "setfsuid", 138 },
++	{ "setfsuid32", __PNR_setfsuid32 },
++	{ "setgid", 46 },
++	{ "setgid32", __PNR_setgid32 },
++	{ "setgroups", 81 },
++	{ "setgroups32", __PNR_setgroups32 },
++	{ "sethostname", 74 },
++	{ "setitimer", 104 },
++	{ "setns", 350 },
++	{ "setpgid", 57 },
++	{ "setpriority", 97 },
++	{ "setregid", 71 },
++	{ "setregid32", __PNR_setregid32 },
++	{ "setresgid", 169 },
++	{ "setresgid32", __PNR_setresgid32 },
++	{ "setresuid", 164 },
++	{ "setresuid32", __PNR_setresuid32 },
++	{ "setreuid", 70 },
++	{ "setreuid32", __PNR_setreuid32 },
++	{ "setrlimit", 75 },
++	{ "setsid", 66 },
++	{ "setsockopt", 339 },
++	{ "settimeofday", 79 },
++	{ "setuid", 23 },
++	{ "setuid32", __PNR_setuid32 },
++	{ "setxattr", 209 },
++	{ "sgetmask", 68 },
++	{ "shmat", __PNR_shmat },
++	{ "shmctl", __PNR_shmctl },
++	{ "shmdt", __PNR_shmdt },
++	{ "shmget", __PNR_shmget },
++	{ "shutdown", 338 },
++	{ "sigaction", 67 },
++	{ "sigaltstack", 185 },
++	{ "signal", 48 },
++	{ "signalfd", 305 },
++	{ "signalfd4", 313 },
++	{ "sigpending", 73 },
++	{ "sigprocmask", 126 },
++	{ "sigreturn", 119 },
++	{ "sigsuspend", 72 },
++	{ "socket", 326 },
++	{ "socketcall", 102 },
++	{ "socketpair", 333 },
++	{ "splice", 283 },
++	{ "spu_create", 279 },
++	{ "spu_run", 278 },
++	{ "ssetmask", 69 },
++	{ "stat", 106 },
++	{ "stat64", 195 },
++	{ "statfs", 99 },
++	{ "statfs64", 252 },
++	{ "stime", 25 },
++	{ "stty", 31 },
++	{ "subpage_prot", 310 },
++	{ "swapcontext", 249 },
++	{ "swapoff", 115 },
++	{ "swapon", 87 },
++	{ "symlink", 83 },
++	{ "symlinkat", 295 },
++	{ "sync", 36 },
++	{ "sync_file_range", __PNR_sync_file_range },
++	{ "sync_file_range2", 308 },
++	{ "syncfs", 348 },
++	{ "syscall", __PNR_syscall },
++	{ "sys_debug_setcontext", 256 },
++	{ "sysfs", 135 },
++	{ "sysinfo", 116 },
++	{ "syslog", 103 },
++	{ "sysmips", __PNR_sysmips },
++	{ "tee", 284 },
++	{ "tgkill", 250 },
++	{ "time", 13 },
++	{ "timer_create", 240 },
++	{ "timer_delete", 244 },
++	{ "timer_getoverrun", 243 },
++	{ "timer_gettime", 242 },
++	{ "timer_settime", 241 },
++	{ "timerfd", __PNR_timerfd },
++	{ "timerfd_create", 306 },
++	{ "timerfd_gettime", 312 },
++	{ "timerfd_settime", 311 },
++	{ "times", 43 },
++	{ "tkill", 208 },
++	{ "truncate", 92 },
++	{ "truncate64", 193 },
++	{ "tuxcall", 225 },
++	{ "ugetrlimit", 190 },
++	{ "ulimit", 58 },
++	{ "umask", 60 },
++	{ "umount", 22 },
++	{ "umount2", 52 },
++	{ "uname", 122 },
++	{ "unlink", 10 },
++	{ "unlinkat", 292 },
++	{ "unshare", 282 },
++	{ "uselib", 86 },
++	{ "ustat", 62 },
++	{ "utime", 30 },
++	{ "utimensat", 304 },
++	{ "utimes", 251 },
++	{ "vfork", 189 },
++	{ "vhangup", 111 },
++	{ "vm86", 113 },
++	{ "vm86old", __PNR_vm86old },
++	{ "vmsplice", 285 },
++	{ "vserver", __PNR_vserver },
++	{ "wait4", 114 },
++	{ "waitid", 272 },
++	{ "waitpid", 7 },
++	{ "write", 4 },
++	{ "writev", 146 },
++	{ NULL, __NR_SCMP_ERROR },
++};
++
++/**
++ * Resolve a syscall name to a number
++ * @param name the syscall name
++ *
++ * Resolve the given syscall name to the syscall number using the syscall table.
++ * Returns the syscall number on success, including negative pseudo syscall
++ * numbers; returns __NR_SCMP_ERROR on failure.
++ *
++ */
++int ppc64_syscall_resolve_name(const char *name)
++{
++	unsigned int iter;
++	const struct arch_syscall_def *table = ppc64_syscall_table;
++
++	/* XXX - plenty of room for future improvement here */
++	for (iter = 0; table[iter].name != NULL; iter++) {
++		if (strcmp(name, table[iter].name) == 0)
++			return table[iter].num;
++	}
++
++	return __NR_SCMP_ERROR;
++}
++
++/**
++ * Resolve a syscall number to a name
++ * @param num the syscall number
++ *
++ * Resolve the given syscall number to the syscall name using the syscall table.
++ * Returns a pointer to the syscall name string on success, including pseudo
++ * syscall names; returns NULL on failure.
++ *
++ */
++const char *ppc64_syscall_resolve_num(int num)
++{
++	unsigned int iter;
++	const struct arch_syscall_def *table = ppc64_syscall_table;
++
++	/* XXX - plenty of room for future improvement here */
++	for (iter = 0; table[iter].num != __NR_SCMP_ERROR; iter++) {
++		if (num == table[iter].num)
++			return table[iter].name;
++	}
++
++	return NULL;
++}
++
++/**
++ * Iterate through the syscall table and return the syscall name
++ * @param spot the offset into the syscall table
++ *
++ * Return the syscall name at position @spot or NULL on failure.  This function
++ * should only ever be used internally by libseccomp.
++ *
++ */
++const char *ppc64_syscall_iterate_name(unsigned int spot)
++{
++	/* XXX - no safety checks here */
++	return ppc64_syscall_table[spot].name;
++}
+diff --git a/src/arch-ppc64.c b/src/arch-ppc64.c
+new file mode 100644
+index 0000000..5f461cb
+--- /dev/null
++++ b/src/arch-ppc64.c
+@@ -0,0 +1,40 @@
++/**
++ * Enhanced Seccomp PPC64 Specific Code
++ *
++ * Copyright (c) 2014 Red Hat <pmoore@redhat.com>
++ * Author: Paul Moore <pmoore@redhat.com>
++ *
++ */
++
++/*
++ * This library is free software; you can redistribute it and/or modify it
++ * under the terms of version 2.1 of the GNU Lesser General Public License as
++ * published by the Free Software Foundation.
++ *
++ * This library is distributed in the hope that it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License
++ * for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public License
++ * along with this library; if not, see <http://www.gnu.org/licenses>.
++ */
++
++#include <linux/audit.h>
++
++#include "arch.h"
++#include "arch-ppc64.h"
++
++const struct arch_def arch_def_ppc64 = {
++	.token = SCMP_ARCH_PPC64,
++	.token_bpf = AUDIT_ARCH_PPC64,
++	.size = ARCH_SIZE_64,
++	.endian = ARCH_ENDIAN_BIG,
++};
++
++const struct arch_def arch_def_ppc64le = {
++	.token = SCMP_ARCH_PPC64LE,
++	.token_bpf = AUDIT_ARCH_PPC64LE,
++	.size = ARCH_SIZE_64,
++	.endian = ARCH_ENDIAN_LITTLE,
++};
+diff --git a/src/arch-ppc64.h b/src/arch-ppc64.h
+new file mode 100644
+index 0000000..1aec743
+--- /dev/null
++++ b/src/arch-ppc64.h
+@@ -0,0 +1,39 @@
++/**
++ * Enhanced Seccomp PPC64 Specific Code
++ *
++ * Copyright (c) 2014 Red Hat <pmoore@redhat.com>
++ * Author: Paul Moore <pmoore@redhat.com>
++ *
++ */
++
++/*
++ * This library is free software; you can redistribute it and/or modify it
++ * under the terms of version 2.1 of the GNU Lesser General Public License as
++ * published by the Free Software Foundation.
++ *
++ * This library is distributed in the hope that it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License
++ * for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public License
++ * along with this library; if not, see <http://www.gnu.org/licenses>.
++ */
++
++#ifndef _ARCH_PPC64_H
++#define _ARCH_PPC64_H
++
++#include <inttypes.h>
++
++#include "arch.h"
++#include "system.h"
++
++extern const struct arch_def arch_def_ppc64;
++extern const struct arch_def arch_def_ppc64le;
++
++int ppc64_syscall_resolve_name(const char *name);
++const char *ppc64_syscall_resolve_num(int num);
++
++const char *ppc64_syscall_iterate_name(unsigned int spot);
++
++#endif
+diff --git a/src/arch-syscall-check.c b/src/arch-syscall-check.c
+index a074c9d..dadab0d 100644
+--- a/src/arch-syscall-check.c
++++ b/src/arch-syscall-check.c
+@@ -33,6 +33,7 @@
+ #include "arch-mips.h"
+ #include "arch-mips64.h"
+ #include "arch-mips64n32.h"
++#include "arch-ppc64.h"
+ 
+ /**
+  * compare the syscall values
+@@ -67,6 +68,7 @@ int main(int argc, char *argv[])
+ 	int i_mips = 0;
+ 	int i_mips64 = 0;
+ 	int i_mips64n32 = 0;
++	int i_ppc64 = 0;
+ 	const char *sys_name;
+ 	char str_miss[256];
+ 
+@@ -93,6 +95,8 @@ int main(int argc, char *argv[])
+ 			      mips64_syscall_iterate_name(i_mips64));
+ 		syscall_check(str_miss, sys_name, "mips64n32",
+ 			      mips64n32_syscall_iterate_name(i_mips64n32));
++		syscall_check(str_miss, sys_name, "ppc64",
++			      ppc64_syscall_iterate_name(i_mips64n32));
+ 
+ 		/* output the results */
+ 		printf("%s: ", sys_name);
+@@ -111,17 +115,20 @@ int main(int argc, char *argv[])
+ 			i_x32 = -1;
+ 		if (!arm_syscall_iterate_name(++i_arm))
+ 			i_arm = -1;
++		if (!aarch64_syscall_iterate_name(++i_aarch64))
++			i_aarch64 = -1;
+ 		if (!mips_syscall_iterate_name(++i_mips))
+ 			i_mips = -1;
+ 		if (!mips64_syscall_iterate_name(++i_mips64))
+ 			i_mips64 = -1;
+ 		if (!mips64n32_syscall_iterate_name(++i_mips64n32))
+ 			i_mips64n32 = -1;
+-		if (!aarch64_syscall_iterate_name(++i_aarch64))
+-			i_aarch64 = -1;
++		if (!ppc64_syscall_iterate_name(++i_ppc64))
++			i_ppc64 = -1;
+ 	} while (i_x86_64 >= 0 && i_x32 >= 0 &&
+ 		 i_arm >= 0 && i_aarch64 >= 0 &&
+-		 i_mips >= 0 && i_mips64 >= 0 && i_mips64n32 >= 0);
++		 i_mips >= 0 && i_mips64 >= 0 && i_mips64n32 >= 0 &&
++		 i_ppc64 >= 0);
+ 
+ 	/* check for any leftovers */
+ 	sys_name = x86_syscall_iterate_name(i_x86 + 1);
+@@ -164,6 +171,11 @@ int main(int argc, char *argv[])
+ 		       mips64n32_syscall_iterate_name(i_mips64n32));
+ 		return 1;
+ 	}
++	if (i_ppc64 >= 0) {
++		printf("%s: ERROR, ppc64 has additional syscalls\n",
++		       ppc64_syscall_iterate_name(i_ppc64));
++		return 1;
++	}
+ 
+ 	/* if we made it here, all is good */
+ 	return 0;
+diff --git a/src/arch-syscall-dump.c b/src/arch-syscall-dump.c
+index 4f53070..985a250 100644
+--- a/src/arch-syscall-dump.c
++++ b/src/arch-syscall-dump.c
+@@ -38,6 +38,7 @@
+ #include "arch-mips64.h"
+ #include "arch-mips64n32.h"
+ #include "arch-aarch64.h"
++#include "arch-ppc64.h"
+ 
+ /**
+  * Print the usage information to stderr and exit
+@@ -97,6 +98,9 @@ int main(int argc, char *argv[])
+ 		case SCMP_ARCH_ARM:
+ 			sys_name = arm_syscall_iterate_name(iter);
+ 			break;
++		case SCMP_ARCH_AARCH64:
++			sys_name = aarch64_syscall_iterate_name(iter);
++			break;
+ 		case SCMP_ARCH_MIPS:
+ 		case SCMP_ARCH_MIPSEL:
+ 			sys_name = mips_syscall_iterate_name(iter);
+@@ -109,9 +113,10 @@ int main(int argc, char *argv[])
+ 		case SCMP_ARCH_MIPSEL64N32:
+ 			sys_name = mips64n32_syscall_iterate_name(iter);
+ 			break;
+-		case SCMP_ARCH_AARCH64:
+-			sys_name = aarch64_syscall_iterate_name(iter);
++		case SCMP_ARCH_PPC64:
++			sys_name = ppc64_syscall_iterate_name(iter);
+ 			break;
++
+ 		default:
+ 			/* invalid arch */
+ 			exit_usage(argv[0]);
+diff --git a/src/arch-syscall-validate b/src/arch-syscall-validate
+index 2cbf696..eeb4d8b 100755
+--- a/src/arch-syscall-validate
++++ b/src/arch-syscall-validate
+@@ -303,6 +303,29 @@ function dump_lib_mips64n32() {
+ }
+ 
+ #
++# Dump the ppc64 system syscall table
++#
++# Arguments:
++#     1    path to the kernel source
++#
++#  Dump the architecture's syscall table to stdout.
++#
++function dump_sys_ppc64() {
++	gcc -E -dM $1/arch/powerpc/include/uapi/asm/unistd.h | \
++		grep "^#define __NR_" | sort | \
++		sed -e 's/#define[ \t]\+__NR_\([a-z0-9_]\+\)[ \t]\+\([0-9]\+\)/\1\t\2/'
++}
++
++#
++# Dump the ppc64 library syscall table
++#
++#  Dump the library's syscall table to stdout.
++#
++function dump_lib_ppc64() {
++	$LIB_SYS_DUMP -a ppc64 | sed -e '/[^\t]\+\t-[0-9]\+/d'
++}
++
++#
+ # Dump the system syscall table
+ #
+ # Arguments:
+@@ -337,6 +360,9 @@ function dump_sys() {
+ 	mips64n32)
+ 		dump_sys_mips64n32 "$2"
+ 		;;
++	ppc64)
++		dump_sys_ppc64 "$2"
++		;;
+ 	*)
+ 		echo ""
+ 		;;
+@@ -377,6 +403,9 @@ function dump_lib() {
+ 	mips64n32)
+ 		dump_lib_mips64n32 "$2"
+ 		;;
++	ppc64)
++		dump_lib_ppc64 "$2"
++		;;
+ 	*)
+ 		echo ""
+ 		;;
+@@ -413,7 +442,7 @@ shift $(($OPTIND - 1))
+ 
+ # defaults
+ if [[ $arches == "" ]]; then
+-	arches="x86 x86_64 x32 arm aarch64 mips mips64 mips64n32"
++	arches="x86 x86_64 x32 arm aarch64 mips mips64 mips64n32 ppc64"
+ fi
+ 
+ # sanity checks
+diff --git a/src/arch-x32-syscalls.c b/src/arch-x32-syscalls.c
+index 7876aa7..578d534 100644
+--- a/src/arch-x32-syscalls.c
++++ b/src/arch-x32-syscalls.c
+@@ -223,6 +223,7 @@ const struct arch_syscall_def x32_syscall_table[] = { \
+ 	{ "msgrcv", (X32_SYSCALL_BIT + 70) },
+ 	{ "msgsnd", (X32_SYSCALL_BIT + 69) },
+ 	{ "msync", (X32_SYSCALL_BIT + 26) },
++	{ "multiplexer", __PNR_multiplexer },
+ 	{ "munlock", (X32_SYSCALL_BIT + 150) },
+ 	{ "munlockall", (X32_SYSCALL_BIT + 152) },
+ 	{ "munmap", (X32_SYSCALL_BIT + 11) },
+@@ -293,6 +294,7 @@ const struct arch_syscall_def x32_syscall_table[] = { \
+ 	{ "rt_sigsuspend", (X32_SYSCALL_BIT + 130) },
+ 	{ "rt_sigtimedwait", (X32_SYSCALL_BIT + 523) },
+ 	{ "rt_tgsigqueueinfo", (X32_SYSCALL_BIT + 536) },
++	{ "rtas", __PNR_rtas },
+ 	{ "sched_get_priority_max", (X32_SYSCALL_BIT + 146) },
+ 	{ "sched_get_priority_min", (X32_SYSCALL_BIT + 147) },
+ 	{ "sched_getaffinity", (X32_SYSCALL_BIT + 204) },
+@@ -370,6 +372,8 @@ const struct arch_syscall_def x32_syscall_table[] = { \
+ 	{ "socketcall", __PNR_socketcall },
+ 	{ "socketpair", (X32_SYSCALL_BIT + 53) },
+ 	{ "splice", (X32_SYSCALL_BIT + 275) },
++	{ "spu_create", __PNR_spu_create },
++	{ "spu_run", __PNR_spu_run },
+ 	{ "ssetmask", __PNR_ssetmask },
+ 	{ "stat", (X32_SYSCALL_BIT + 4) },
+ 	{ "stat64", __PNR_stat64 },
+@@ -377,6 +381,8 @@ const struct arch_syscall_def x32_syscall_table[] = { \
+ 	{ "statfs64", __PNR_statfs64 },
+ 	{ "stime", __PNR_stime },
+ 	{ "stty", __PNR_stty },
++	{ "subpage_prot", __PNR_subpage_prot },
++	{ "swapcontext", __PNR_swapcontext },
+ 	{ "swapoff", (X32_SYSCALL_BIT + 168) },
+ 	{ "swapon", (X32_SYSCALL_BIT + 167) },
+ 	{ "symlink", (X32_SYSCALL_BIT + 88) },
+@@ -386,6 +392,7 @@ const struct arch_syscall_def x32_syscall_table[] = { \
+ 	{ "sync_file_range2", __PNR_sync_file_range2 },
+ 	{ "syncfs", (X32_SYSCALL_BIT + 306) },
+ 	{ "syscall", __PNR_syscall },
++	{ "sys_debug_setcontext", __PNR_sys_debug_setcontext },
+ 	{ "sysfs", (X32_SYSCALL_BIT + 139) },
+ 	{ "sysinfo", (X32_SYSCALL_BIT + 99) },
+ 	{ "syslog", (X32_SYSCALL_BIT + 103) },
+diff --git a/src/arch-x86-syscalls.c b/src/arch-x86-syscalls.c
+index 1d36c0b..92343f0 100644
+--- a/src/arch-x86-syscalls.c
++++ b/src/arch-x86-syscalls.c
+@@ -223,6 +223,7 @@ const struct arch_syscall_def x86_syscall_table[] = { \
+ 	{ "msgrcv", __PNR_msgrcv },
+ 	{ "msgsnd", __PNR_msgsnd },
+ 	{ "msync", 144 },
++	{ "multiplexer", __PNR_multiplexer },
+ 	{ "munlock", 151 },
+ 	{ "munlockall", 153 },
+ 	{ "munmap", 91 },
+@@ -293,6 +294,7 @@ const struct arch_syscall_def x86_syscall_table[] = { \
+ 	{ "rt_sigsuspend", 179 },
+ 	{ "rt_sigtimedwait", 177 },
+ 	{ "rt_tgsigqueueinfo", 335 },
++	{ "rtas", __PNR_rtas },
+ 	{ "sched_get_priority_max", 159 },
+ 	{ "sched_get_priority_min", 160 },
+ 	{ "sched_getaffinity", 242 },
+@@ -370,6 +372,8 @@ const struct arch_syscall_def x86_syscall_table[] = { \
+ 	{ "socketcall", 102 },
+ 	{ "socketpair", __PNR_socketpair },
+ 	{ "splice", 313 },
++	{ "spu_create", __PNR_spu_create },
++	{ "spu_run", __PNR_spu_run },
+ 	{ "ssetmask", 69 },
+ 	{ "stat", 106 },
+ 	{ "stat64", 195 },
+@@ -377,6 +381,8 @@ const struct arch_syscall_def x86_syscall_table[] = { \
+ 	{ "statfs64", 268 },
+ 	{ "stime", 25 },
+ 	{ "stty", 31 },
++	{ "subpage_prot", __PNR_subpage_prot },
++	{ "swapcontext", __PNR_swapcontext },
+ 	{ "swapoff", 115 },
+ 	{ "swapon", 87 },
+ 	{ "symlink", 83 },
+@@ -386,6 +392,7 @@ const struct arch_syscall_def x86_syscall_table[] = { \
+ 	{ "sync_file_range2", __PNR_sync_file_range2 },
+ 	{ "syncfs", 344 },
+ 	{ "syscall", __PNR_syscall },
++	{ "sys_debug_setcontext", __PNR_sys_debug_setcontext },
+ 	{ "sysfs", 135 },
+ 	{ "sysinfo", 116 },
+ 	{ "syslog", 103 },
+diff --git a/src/arch-x86_64-syscalls.c b/src/arch-x86_64-syscalls.c
+index 69c22ab..d0d4241 100644
+--- a/src/arch-x86_64-syscalls.c
++++ b/src/arch-x86_64-syscalls.c
+@@ -223,6 +223,7 @@ const struct arch_syscall_def x86_64_syscall_table[] = { \
+ 	{ "msgrcv", 70 },
+ 	{ "msgsnd", 69 },
+ 	{ "msync", 26 },
++	{ "multiplexer", __PNR_multiplexer },
+ 	{ "munlock", 150 },
+ 	{ "munlockall", 152 },
+ 	{ "munmap", 11 },
+@@ -293,6 +294,7 @@ const struct arch_syscall_def x86_64_syscall_table[] = { \
+ 	{ "rt_sigsuspend", 130 },
+ 	{ "rt_sigtimedwait", 128 },
+ 	{ "rt_tgsigqueueinfo", 297 },
++	{ "rtas", __PNR_rtas },
+ 	{ "sched_get_priority_max", 146 },
+ 	{ "sched_get_priority_min", 147 },
+ 	{ "sched_getaffinity", 204 },
+@@ -370,6 +372,8 @@ const struct arch_syscall_def x86_64_syscall_table[] = { \
+ 	{ "socketcall", __PNR_socketcall },
+ 	{ "socketpair", 53 },
+ 	{ "splice", 275 },
++	{ "spu_create", __PNR_spu_create },
++	{ "spu_run", __PNR_spu_run },
+ 	{ "ssetmask", __PNR_ssetmask },
+ 	{ "stat", 4 },
+ 	{ "stat64", __PNR_stat64 },
+@@ -377,6 +381,8 @@ const struct arch_syscall_def x86_64_syscall_table[] = { \
+ 	{ "statfs64", __PNR_statfs64 },
+ 	{ "stime", __PNR_stime },
+ 	{ "stty", __PNR_stty },
++	{ "subpage_prot", __PNR_subpage_prot },
++	{ "swapcontext", __PNR_swapcontext },
+ 	{ "swapoff", 168 },
+ 	{ "swapon", 167 },
+ 	{ "symlink", 88 },
+@@ -386,6 +392,7 @@ const struct arch_syscall_def x86_64_syscall_table[] = { \
+ 	{ "sync_file_range2", __PNR_sync_file_range2 },
+ 	{ "syncfs", 306 },
+ 	{ "syscall", __PNR_syscall },
++	{ "sys_debug_setcontext", __PNR_sys_debug_setcontext },
+ 	{ "sysfs", 139 },
+ 	{ "sysinfo", 99 },
+ 	{ "syslog", 103 },
+diff --git a/tools/util.h b/tools/util.h
+index 261320f..95b06c9 100644
+--- a/tools/util.h
++++ b/tools/util.h
+@@ -47,6 +47,10 @@
+ #define AUDIT_ARCH_AARCH64	(EM_AARCH64|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
+ #endif
+ 
++#ifndef AUDIT_ARCH_PPC64LE
++#define AUDIT_ARCH_PPC64LE	(EM_PPC64|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
++#endif
++
+ extern uint32_t arch;
+ 
+ void exit_usage(const char *program);
+-- 
+2.3.5
+

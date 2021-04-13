@@ -1,0 +1,55 @@
+From 510e38e388efb62a562cd740ebe5e255f43575ec Mon Sep 17 00:00:00 2001
+From: Adrian Brathwaite <adrian.brathwaite@flex.com>
+Date: Fri, 23 Feb 2018 11:51:45 -0800
+Subject: [PATCH] Adding eeprom utilities to Makefile
+
+---
+ .../Makefile              | 28 ++++++++++++++++++++--
+ 1 file changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index f2aeadc..6eb09cb 100644
+--- a/Makefile
++++ b/Makefile
+@@ -15,12 +15,36 @@
+ # 51 Franklin Street, Fifth Floor,
+ # Boston, MA 02110-1301 USA
+ 
+-utils: weutil
++utils: weutil wemanuf id-eeprom-upg onie_eep_dbg onie-eeprom-prog onie-eeprom-show onie-eeprom-upg id-eeprom-prog id-eeprom-show
+ 
+ weutil: weutil.o
+ 	$(CC) $(LDFLAGS) -o $@ $^ -lwedge_eeprom
+ 
++wemanuf: wemanuf.o
++	$(CC) $(LDFLAGS) -o $@ $^ -lwedge_eeprom
++
++id-eeprom-upg: id-eeprom-upg.o
++	$(CC) $(LDFLAGS) -o $@ $^ -lwedge_eeprom
++
++onie_eep_dbg: onie_eep_dbg.o
++	$(CC) $(LDFLAGS) -o $@ $^ -lwedge_eeprom
++
++onie-eeprom-prog: onie-eeprom-prog.o
++	$(CC) $(LDFLAGS) -o $@ $^ -lwedge_eeprom
++
++onie-eeprom-show: onie-eeprom-show.o
++	$(CC) $(LDFLAGS) -o $@ $^ -lwedge_eeprom
++
++onie-eeprom-upg: onie-eeprom-upg.o
++	$(CC) $(LDFLAGS) -o $@ $^ -lwedge_eeprom
++
++id-eeprom-prog: id-eeprom-prog.o
++	$(CC) $(LDFLAGS) -o $@ $^ -lwedge_eeprom
++
++id-eeprom-show: id-eeprom-show.o
++	$(CC) $(LDFLAGS) -o $@ $^ -lwedge_eeprom
++
+ .PHONY: clean
+ 
+ clean:
+-	rm -rf *.o weutil
++	rm -rf *.o weutil wemanuf id-eeprom-upg onie_eep_dbg onie-eeprom-prog onie-eeprom-show onie-eeprom-upg id-eeprom-prog id-eeprom-show
+-- 
+2.5.0
+

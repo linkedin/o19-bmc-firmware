@@ -1,0 +1,25 @@
+Index: git/tests/regression
+===================================================================
+--- git.orig/tests/regression
++++ git/tests/regression
+@@ -468,13 +468,13 @@ function run_test_bpf_sim() {
+ 		# and arg ranges and generate/run every combination of requested
+ 		# tests; if no ranges were specifed, then the single test is
+ 		# run
+-		for sys in $(seq -f "%1.0f" $low_syscall $high_syscall); do
+-		for arg0 in $(seq -f "%1.0f" ${low_arg[0]} ${high_arg[0]}); do
+-		for arg1 in $(seq -f "%1.0f" ${low_arg[1]} ${high_arg[1]}); do
+-		for arg2 in $(seq -f "%1.0f" ${low_arg[2]} ${high_arg[2]}); do
+-		for arg3 in $(seq -f "%1.0f" ${low_arg[3]} ${high_arg[3]}); do
+-		for arg4 in $(seq -f "%1.0f" ${low_arg[4]} ${high_arg[4]}); do
+-		for arg5 in $(seq -f "%1.0f" ${low_arg[5]} ${high_arg[5]}); do
++		for sys in $(seq  $low_syscall $high_syscall); do
++		for arg0 in $(seq ${low_arg[0]} ${high_arg[0]}); do
++		for arg1 in $(seq ${low_arg[1]} ${high_arg[1]}); do
++		for arg2 in $(seq ${low_arg[2]} ${high_arg[2]}); do
++		for arg3 in $(seq ${low_arg[3]} ${high_arg[3]}); do
++		for arg4 in $(seq ${low_arg[4]} ${high_arg[4]}); do
++		for arg5 in $(seq ${low_arg[5]} ${high_arg[5]}); do
+ 			local -a arg=($arg0 $arg1 $arg2 $arg3 $arg4 $arg5)
+ 
+ 			# Get the generated sub-test num string

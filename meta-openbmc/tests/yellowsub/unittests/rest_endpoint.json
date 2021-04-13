@@ -1,0 +1,158 @@
+{
+  "type":"yellowsub",
+  "endpoints":{
+    "/api": [
+      "mb",
+      "mezz",
+      "server1",
+      "server2",
+      "server3",
+      "server4"
+    ],
+    "/api/mb":[
+      "fruid",
+      "bmc",
+      "sensors"
+    ],
+    "/api/mb/fruid": [
+      "PCB Manufacturer",
+      "Version",
+      "ODM PCBA Serial Number",
+      "System Manufacturing Date",
+      "Product Serial Number",
+      "ODM PCBA Part Number",
+      "Product Sub-Version",
+      "Product Version",
+      "Product Asset Tag",
+      "Assembled At",
+      "System Manufacturer",
+      "Product Production State",
+      "Reserved",
+      "Extended MAC Base",
+      "Local MAC",
+      "EEPROM",
+      "Product Name",
+      "LinkedIn PCBA Part Number",
+      "Extended MAC Address Size",
+      "Product Part Number",
+      "CRC8",
+      "System Assembly Part Number",
+      "LinkedIn PCB Part Number"
+    ],
+    "/api/mb/bmc":[
+      "cpu_usage",
+      "mac_address",
+      "kernel_version",
+      "u-boot_version",
+      "reset_reason",
+      "uptime"
+    ],
+    "/api/server1": [
+      "fruid",
+      "sensors"
+    ],
+    "/api/server2": [
+      "fruid",
+      "sensors"
+    ],
+    "/api/server3": [
+      "fruid",
+      "sensors"
+    ],
+    "/api/server4": [
+      "fruid",
+      "sensors"
+    ],
+    "/api/server1/fruid": [
+      "Board Mfg",
+      "Board Serial",
+      "Product Serial",
+      "Product FRU ID",
+      "Board Mfg Date",
+      "Product Manufacturer",
+      "Chassis Part Number",
+      "Chassis Type",
+      "Product Name",
+      "Product Version",
+      "Board FRU ID",
+      "Product Part Number",
+      "Chassis Serial Number",
+      "Board Product",
+      "Board Part Number",
+      "Product Asset Tag"
+    ],
+    "/api/server2/fruid": [
+      "Board Mfg",
+      "Board Serial",
+      "Product Serial",
+      "Product FRU ID",
+      "Board Mfg Date",
+      "Product Manufacturer",
+      "Chassis Part Number",
+      "Chassis Type",
+      "Product Name",
+      "Product Version",
+      "Board FRU ID",
+      "Product Part Number",
+      "Chassis Serial Number",
+      "Board Product",
+      "Board Part Number",
+      "Product Asset Tag"
+    ],
+    "/api/server3/fruid": [
+      "Board Mfg",
+      "Board Serial",
+      "Product Serial",
+      "Product FRU ID",
+      "Board Mfg Date",
+      "Product Manufacturer",
+      "Chassis Part Number",
+      "Chassis Type",
+      "Product Name",
+      "Product Version",
+      "Board FRU ID",
+      "Product Part Number",
+      "Chassis Serial Number",
+      "Board Product",
+      "Board Part Number",
+      "Product Asset Tag"
+    ],
+    "/api/server4/fruid": [
+      "Board Mfg",
+      "Board Serial",
+      "Product Serial",
+      "Product FRU ID",
+      "Board Mfg Date",
+      "Product Manufacturer",
+      "Chassis Part Number",
+      "Chassis Type",
+      "Product Name",
+      "Product Version",
+      "Board FRU ID",
+      "Product Part Number",
+      "Chassis Serial Number",
+      "Board Product",
+      "Board Part Number",
+      "Product Asset Tag"
+    ],
+    "/api/server1/sensors": [
+      "SOC DIMMA0 Temp              (0xB4)",
+      "P12V_MB                      (0xD2)",
+      "P5V_STBY_MB                  (0xD6)",
+      "SOC Therm Margin             (0x9)",
+      "PVDDR                        (0xD8)",
+      "PVCCGBE                      (0xD9)",
+      "SOC Temp                     (0x5)",
+      "SOC Package Pwr              (0x2C)",
+      "PCH Temp                     (0x8)",
+      "PV_BAT                       (0xD7)",
+      "MB Outlet Temp               (0x1)",
+      "INA230 Voltage               (0x2A)",
+      "SOC DIMMB0 Temp              (0xB6)",
+      "INA230 Power                 (0x29)",
+      "P3V3_MB                      (0xD0)",
+      "P3V3_STBY_MB                 (0xD5)",
+      "P1V05_PCH                    (0xD3)"
+    ]
+  }
+}

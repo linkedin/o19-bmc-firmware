@@ -1,0 +1,128 @@
+From 70c69945bf0da09baec2e109ba19b883de4d0e80 Mon Sep 17 00:00:00 2001
+From: Paul Moore <pmoore@redhat.com>
+Date: Fri, 26 Sep 2014 12:06:18 -0400
+Subject: [PATCH 02/11] arch: add the basic initial support for ppc64 to the
+ arch-dependent code
+
+Signed-off-by: Paul Moore <pmoore@redhat.com>
+---
+ src/arch.c                | 21 +++++++++++++++++++++
+ src/python/libseccomp.pxd |  2 ++
+ src/python/seccomp.pyx    |  7 +++++++
+ 3 files changed, 30 insertions(+)
+
+diff --git a/src/arch.c b/src/arch.c
+index e29b579..64fc1d1 100644
+--- a/src/arch.c
++++ b/src/arch.c
+@@ -38,6 +38,7 @@
+ #include "arch-mips.h"
+ #include "arch-mips64.h"
+ #include "arch-mips64n32.h"
++#include "arch-ppc64.h"
+ #include "system.h"
+ 
+ #define default_arg_count_max		6
+@@ -74,6 +75,12 @@ const struct arch_def *arch_def_native = &arch_def_mips64n32;
+ #elif __MIPSEL__
+ const struct arch_def *arch_def_native = &arch_def_mipsel64n32;
+ #endif /* _MIPS_SIM_NABI32 */
++#elif __PPC64__
++#ifdef __BIG_ENDIAN__
++const struct arch_def *arch_def_native = &arch_def_ppc64;
++#else
++const struct arch_def *arch_def_native = &arch_def_ppc64le;
++#endif
+ #else
+ #error the arch code needs to know about your machine type
+ #endif /* machine type guess */
+@@ -122,6 +129,10 @@ const struct arch_def *arch_def_lookup(uint32_t token)
+ 		return &arch_def_mips64n32;
+ 	case SCMP_ARCH_MIPSEL64N32:
+ 		return &arch_def_mipsel64n32;
++	case SCMP_ARCH_PPC64:
++		return &arch_def_ppc64;
++	case SCMP_ARCH_PPC64LE:
++		return &arch_def_ppc64le;
+ 	}
+ 
+ 	return NULL;
+@@ -158,6 +169,10 @@ const struct arch_def *arch_def_lookup_name(const char *arch_name)
+ 		return &arch_def_mips64n32;
+ 	else if (strcmp(arch_name, "mipsel64n32") == 0)
+ 		return &arch_def_mipsel64n32;
++	else if (strcmp(arch_name, "ppc64") == 0)
++		return &arch_def_ppc64;
++	else if (strcmp(arch_name, "ppc64le") == 0)
++		return &arch_def_ppc64le;
+ 
+ 	return NULL;
+ }
+@@ -276,6 +291,9 @@ int arch_syscall_resolve_name(const struct arch_def *arch, const char *name)
+ 	case SCMP_ARCH_MIPS64N32:
+ 	case SCMP_ARCH_MIPSEL64N32:
+ 		return mips64n32_syscall_resolve_name(name);
++	case SCMP_ARCH_PPC64:
++	case SCMP_ARCH_PPC64LE:
++		return ppc64_syscall_resolve_name(name);
+ 	}
+ 
+ 	return __NR_SCMP_ERROR;
+@@ -313,6 +331,9 @@ const char *arch_syscall_resolve_num(const struct arch_def *arch, int num)
+ 	case SCMP_ARCH_MIPS64N32:
+ 	case SCMP_ARCH_MIPSEL64N32:
+ 		return mips64n32_syscall_resolve_num(num);
++	case SCMP_ARCH_PPC64:
++	case SCMP_ARCH_PPC64LE:
++		return ppc64_syscall_resolve_num(num);
+ 	}
+ 
+ 	return NULL;
+diff --git a/src/python/libseccomp.pxd b/src/python/libseccomp.pxd
+index 2b50f3f..a546550 100644
+--- a/src/python/libseccomp.pxd
++++ b/src/python/libseccomp.pxd
+@@ -38,6 +38,8 @@ cdef extern from "seccomp.h":
+         SCMP_ARCH_MIPSEL
+         SCMP_ARCH_MIPSEL64
+         SCMP_ARCH_MIPSEL64N32
++        SCMP_ARCH_PPC64
++        SCMP_ARCH_PPC64LE
+ 
+     cdef enum scmp_filter_attr:
+         SCMP_FLTATR_ACT_DEFAULT
+diff --git a/src/python/seccomp.pyx b/src/python/seccomp.pyx
+index d2f7c90..f30a0b6 100644
+--- a/src/python/seccomp.pyx
++++ b/src/python/seccomp.pyx
+@@ -147,6 +147,7 @@ cdef class Arch:
+     MIPSEL - MIPS little endian O32 ABI
+     MIPSEL64 - MIPS little endian 64-bit ABI
+     MIPSEL64N32 - MIPS little endian N32 ABI
++    PPC64 - 64-bit PowerPC
+     """
+ 
+     cdef int _token
+@@ -163,6 +164,8 @@ cdef class Arch:
+     MIPSEL = libseccomp.SCMP_ARCH_MIPSEL
+     MIPSEL64 = libseccomp.SCMP_ARCH_MIPSEL64
+     MIPSEL64N32 = libseccomp.SCMP_ARCH_MIPSEL64N32
++    PPC64 = libseccomp.SCMP_ARCH_PPC64
++    PPC64 = libseccomp.SCMP_ARCH_PPC64LE
+ 
+     def __cinit__(self, arch=libseccomp.SCMP_ARCH_NATIVE):
+         """ Initialize the architecture object.
+@@ -198,6 +201,10 @@ cdef class Arch:
+                 self._token = libseccomp.SCMP_ARCH_MIPSEL64
+             elif arch == libseccomp.SCMP_ARCH_MIPSEL64N32:
+                 self._token = libseccomp.SCMP_ARCH_MIPSEL64N32
++            elif arch == libseccomp.SCMP_ARCH_PPC64:
++                self._token = libseccomp.SCMP_ARCH_PPC64
++            elif arch == libseccomp.SCMP_ARCH_PPC64LE:
++                self._token = libseccomp.SCMP_ARCH_PPC64LE
+             else:
+                 self._token = 0;
+         elif isinstance(arch, basestring):
+-- 
+2.3.5
+

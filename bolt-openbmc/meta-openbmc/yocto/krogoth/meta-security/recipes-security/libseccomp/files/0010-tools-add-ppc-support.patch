@@ -1,0 +1,70 @@
+From b54dafd62376f9041b4d48e800f39c588554aabc Mon Sep 17 00:00:00 2001
+From: Bogdan Purcareata <bogdan.purcareata@freescale.com>
+Date: Wed, 11 Feb 2015 13:23:27 +0000
+Subject: [PATCH 10/11] tools: add ppc support
+
+Signed-off-by: Bogdan Purcareata <bogdan.purcareata@freescale.com>
+Signed-off-by: Paul Moore <pmoore@redhat.com>
+---
+ tools/scmp_arch_detect.c | 3 +++
+ tools/scmp_bpf_disasm.c  | 2 ++
+ tools/scmp_bpf_sim.c     | 2 ++
+ tools/util.c             | 2 ++
+ 4 files changed, 9 insertions(+)
+
+diff --git a/tools/scmp_arch_detect.c b/tools/scmp_arch_detect.c
+index d23d2ec..03644c6 100644
+--- a/tools/scmp_arch_detect.c
++++ b/tools/scmp_arch_detect.c
+@@ -105,6 +105,9 @@ int main(int argc, char *argv[])
+ 		case SCMP_ARCH_PPC64LE:
+ 			printf("ppc64le\n");
+ 			break;
++		case SCMP_ARCH_PPC:
++			printf("ppc\n");
++			break;
+ 		default:
+ 			printf("unknown\n");
+ 		}
+diff --git a/tools/scmp_bpf_disasm.c b/tools/scmp_bpf_disasm.c
+index 9199e17..d773469 100644
+--- a/tools/scmp_bpf_disasm.c
++++ b/tools/scmp_bpf_disasm.c
+@@ -338,6 +338,8 @@ int main(int argc, char *argv[])
+ 				arch = AUDIT_ARCH_PPC64;
+ 			else if (strcmp(optarg, "ppc64le") == 0)
+ 				arch = AUDIT_ARCH_PPC64LE;
++			else if (strcmp(optarg, "ppc") == 0)
++				arch = AUDIT_ARCH_PPC;
+ 			else
+ 				exit_usage(argv[0]);
+ 			break;
+diff --git a/tools/scmp_bpf_sim.c b/tools/scmp_bpf_sim.c
+index d3e439f..a53b4fd 100644
+--- a/tools/scmp_bpf_sim.c
++++ b/tools/scmp_bpf_sim.c
+@@ -253,6 +253,8 @@ int main(int argc, char *argv[])
+ 				arch = AUDIT_ARCH_PPC64;
+ 			else if (strcmp(optarg, "ppc64le") == 0)
+ 				arch = AUDIT_ARCH_PPC64LE;
++			else if (strcmp(optarg, "ppc") == 0)
++				arch = AUDIT_ARCH_PPC;
+ 			else
+ 				exit_fault(EINVAL);
+ 			break;
+diff --git a/tools/util.c b/tools/util.c
+index f998009..b45de3b 100644
+--- a/tools/util.c
++++ b/tools/util.c
+@@ -68,6 +68,8 @@
+ #else
+ #define ARCH_NATIVE		AUDIT_ARCH_PPC64LE
+ #endif
++#elif __PPC__
++#define ARCH_NATIVE		AUDIT_ARCH_PPC
+ #else
+ #error the simulator code needs to know about your machine type
+ #endif
+-- 
+2.3.5
+

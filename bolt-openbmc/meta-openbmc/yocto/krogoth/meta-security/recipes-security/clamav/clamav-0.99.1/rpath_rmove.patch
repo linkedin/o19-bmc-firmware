@@ -1,0 +1,44 @@
+Index: clamav-0.99/configure
+===================================================================
+--- clamav-0.99.orig/configure
++++ clamav-0.99/configure
+@@ -9266,7 +9266,7 @@ $as_echo_n "checking whether the $compil
+     # are reset later if shared libraries are not supported. Putting them
+     # here allows them to be overridden if necessary.
+     runpath_var=LD_RUN_PATH
+-    hardcode_libdir_flag_spec='${wl}-rpath ${wl}$libdir'
++    hardcode_libdir_flag_spec='${wl}-rpath $libdir'
+     export_dynamic_flag_spec='${wl}--export-dynamic'
+     # ancient GNU ld didn't support --whole-archive et. al.
+     if $LD --help 2>&1 | $GREP 'no-whole-archive' > /dev/null; then
+@@ -9502,7 +9502,7 @@ _LT_EOF
+ 	  # DT_RUNPATH tag from executables and libraries.  But doing so
+ 	  # requires that you compile everything twice, which is a pain.
+ 	  if $LD --help 2>&1 | $GREP ': supported targets:.* elf' > /dev/null; then
+-	    hardcode_libdir_flag_spec='${wl}-rpath ${wl}$libdir'
++	    hardcode_libdir_flag_spec='${wl}-rpath $libdir'
+ 	    archive_cmds='$CC -shared $libobjs $deplibs $compiler_flags ${wl}-soname $wl$soname -o $lib'
+ 	    archive_expsym_cmds='$CC -shared $libobjs $deplibs $compiler_flags ${wl}-soname $wl$soname ${wl}-retain-symbols-file $wl$export_symbols -o $lib'
+ 	  else
+@@ -10074,7 +10074,7 @@ $as_echo "$lt_cv_irix_exported_symbol" >
+ 	archive_expsym_cmds='$CC -shared $libobjs $deplibs $compiler_flags -soname $soname `test -n "$verstring" && func_echo_all "-set_version $verstring"` -update_registry ${output_objdir}/so_locations -exports_file $export_symbols -o $lib'
+       fi
+       archive_cmds_need_lc='no'
+-      hardcode_libdir_flag_spec='${wl}-rpath ${wl}$libdir'
++      hardcode_libdir_flag_spec='${wl}-rpath $libdir'
+       hardcode_libdir_separator=:
+       inherit_rpath=yes
+       link_all_deplibs=yes
+Index: clamav-0.99/config/config.rpath
+===================================================================
+--- clamav-0.99.orig/config/config.rpath
++++ clamav-0.99/config/config.rpath
+@@ -156,7 +156,7 @@ if test "$with_gnu_ld" = yes; then
+   # here allows them to be overridden if necessary.
+   # Unlike libtool, we use -rpath here, not --rpath, since the documented
+   # option of GNU ld is called -rpath, not --rpath.
+-  hardcode_libdir_flag_spec='${wl}-rpath ${wl}$libdir'
++  hardcode_libdir_flag_spec=
+   case "$host_os" in
+     aix3* | aix4* | aix5*)
+       # On AIX/PPC, the GNU linker is very broken

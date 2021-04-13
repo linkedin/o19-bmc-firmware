@@ -1,0 +1,29 @@
+From 894784b321e088b5a10c2fdd442e7b326daedb7f Mon Sep 17 00:00:00 2001
+From: Bogdan Purcareata <bogdan.purcareata@freescale.com>
+Date: Wed, 11 Feb 2015 10:45:41 +0000
+Subject: [PATCH 07/11] tests: minor fix in arch-syscall-check
+
+Sent against working-ppc64.
+
+Signed-off-by: Bogdan Purcareata <bogdan.purcareata@freescale.com>
+Signed-off-by: Paul Moore <pmoore@redhat.com>
+---
+ src/arch-syscall-check.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/arch-syscall-check.c b/src/arch-syscall-check.c
+index dadab0d..a091a6d 100644
+--- a/src/arch-syscall-check.c
++++ b/src/arch-syscall-check.c
+@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
+ 		syscall_check(str_miss, sys_name, "mips64n32",
+ 			      mips64n32_syscall_iterate_name(i_mips64n32));
+ 		syscall_check(str_miss, sys_name, "ppc64",
+-			      ppc64_syscall_iterate_name(i_mips64n32));
++			      ppc64_syscall_iterate_name(i_ppc64));
+ 
+ 		/* output the results */
+ 		printf("%s: ", sys_name);
+-- 
+2.3.5
+

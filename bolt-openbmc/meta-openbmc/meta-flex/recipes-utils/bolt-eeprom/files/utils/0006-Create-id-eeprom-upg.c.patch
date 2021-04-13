@@ -1,0 +1,1319 @@
+From 49193da80fff9ca98850835b166890f0e61fcdb5 Mon Sep 17 00:00:00 2001
+From: Adrian Brathwaite <adrian.brathwaite@flex.com>
+Date: Fri, 23 Feb 2018 09:10:12 -0800
+Subject: [PATCH] Create id-eeprom-upg.c
+
+---
+ .../id-eeprom-upg.c       | 1300 ++++++++++++++++++++
+ 1 file changed, 1300 insertions(+)
+ create mode 100644 id-eeprom-upg.c
+
+diff --git a/id-eeprom-upg.c b/id-eeprom-upg.c
+new file mode 100644
+index 0000000..008a41d
+--- /dev/null
++++ b/id-eeprom-upg.c
+@@ -0,0 +1,1300 @@
++/*
++ * Copyright 2017-present Flextronics. All Rights Reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
++ *
++ * Program the Bolt manufacturing EEPROM
++ *
++ * Author: Adrian Brathwaite (adrian.brathwaite@flextronics.com)
++ */
++
++#include <facebook/wedge_eeprom.h>
++
++#include <assert.h>
++#include <errno.h>
++#include <stdio.h>
++#include <string.h>
++#include <syslog.h>
++
++#define FLX_EEV2_F_MAGIC 2
++#define FLX_EEV2_F_VERSION 1
++#define FLX_EEV2_F_PRODUCT_NAME 12
++#define FLX_EEV2_F_PRODUCT_NUMBER 12
++#define FLX_EEV2_F_ASSEMBLY_NUMBER 12
++#define FLX_EEV2_F_FACEBOOK_PCBA_NUMBER 12
++#define FLX_EEV2_F_FACEBOOK_PCB_NUMBER 11
++#define FLX_EEV2_F_ODM_PCBA_NUMBER 12
++#define FLX_EEV2_F_ODM_PCBA_SERIAL 12
++#define FLX_EEV2_F_PRODUCT_STATE 1
++#define FLX_EEV2_F_PRODUCT_VERSION 1
++#define FLX_EEV2_F_PRODUCT_SUBVERSION 1
++#define FLX_EEV2_F_PRODUCT_SERIAL 12
++#define FLX_EEV2_F_PRODUCT_ASSET 12
++
++#define FLX_EEV2_F_SYSTEM_MANUFACTURER 8
++#define FLX_EEV2_F_SYSTEM_MANU_DATE 4
++#define FLX_EEV2_F_PCB_MANUFACTURER 8
++#define FLX_EEV2_F_ASSEMBLED 8
++#define FLX_EEV2_F_LOCAL_MAC 12
++#define FLX_EEV2_F_EXT_MAC_BASE 12
++#define FLX_EEV2_F_EXT_MAC_SIZE 2
++
++#define FLX_EEV2_F_LOCATION 8
++#define FLX_EEV2_F_CRC8 1
++
++#define FLX_EEV5_F_MAGIC 2
++#define FLX_EEV5_F_VERSION 1
++#define FLX_EEV5_F_PRODUCT_NAME 12
++#define FLX_EEV5_F_PRODUCT_NUMBER 12
++#define FLX_EEV5_F_ASSEMBLY_NUMBER 12
++#define FLX_EEV5_F_FACEBOOK_PCBA_NUMBER 12
++#define FLX_EEV5_F_FACEBOOK_PCB_NUMBER 11
++#define FLX_EEV5_F_ODM_PCBA_NUMBER 12
++#define FLX_EEV5_F_ODM_PCBA_SERIAL 12
++#define FLX_EEV5_F_PRODUCT_STATE 1
++#define FLX_EEV5_F_PRODUCT_VERSION 1
++#define FLX_EEV5_F_PRODUCT_SUBVERSION 1
++#define FLX_EEV5_F_PRODUCT_SERIAL 12
++#define FLX_EEV5_F_PRODUCT_ASSET 12
++
++#define FLX_EEV5_F_SYSTEM_MANUFACTURER 10
++#define FLX_EEV5_F_SYSTEM_MANU_DATE 4
++#define FLX_EEV5_F_PCB_MANUFACTURER 8
++#define FLX_EEV5_F_ASSEMBLED 13
++#define FLX_EEV5_F_LOCAL_MAC 12
++#define FLX_EEV5_F_EXT_MAC_BASE 12
++#define FLX_EEV5_F_EXT_MAC_SIZE 1
++
++#define FLX_EEV5_F_LOCATION 8
++#define FLX_EEV5_F_CRC8 1
++
++#define BOARD_ID_EEPROM_TXT_FILE "/usr/bin/bmc-id-eeprom.example"
++
++FILE *ftxt;
++
++/* Version 2 of the eeprom */
++struct bolt_eeprom_v2_st {
++  /* version number of the eeprom. Must be the first element */
++  uint8_t fbw_version;
++
++  /* Product Name */
++  char fbw_product_name[FLX_EEV2_F_PRODUCT_NAME + 1];
++
++  /* Top Level 20 - Product Part Number: XX-XXXXXX */
++  char fbw_product_number[FLX_EEV2_F_PRODUCT_NUMBER + 2];
++
++  /* System Assembly Part Number XXX-XXXXXX-XX */
++  char fbw_assembly_number[FLX_EEV2_F_ASSEMBLY_NUMBER + 2];
++
++  /* Facebook PCBA Part Number: XXX-XXXXXXX-XX */
++  char fbw_facebook_pcba_number[FLX_EEV2_F_FACEBOOK_PCBA_NUMBER + 2];
++
++  /* Facebook PCB Part Number: XXX-XXXXXXX-XX */
++  char fbw_facebook_pcb_number[FLX_EEV2_F_FACEBOOK_PCB_NUMBER + 3];
++
++  /* ODM PCB Part Number: XXXXXXXXXXXX */
++  char fbw_odm_pcba_number[FLX_EEV2_F_ODM_PCBA_NUMBER + 2];
++
++  /* ODM PCB Serial Number: XXXXXXXXXXXX */
++  char fbw_odm_pcba_serial[FLX_EEV2_F_ODM_PCBA_SERIAL + 1];
++
++  /* Product Production State */
++  uint8_t fbw_production_state;
++
++  /* Product Version */
++  uint8_t fbw_product_version;
++
++  /* Product Sub Version */
++  uint8_t fbw_product_subversion;
++
++  /* Product Serial Number: XXXXXXXX */
++  char fbw_product_serial[FLX_EEV2_F_PRODUCT_SERIAL + 1];
++
++  /* Product Asset Tag: XXXXXXXX */
++  char fbw_product_asset[FLX_EEV2_F_PRODUCT_ASSET + 1];
++
++  /* System Manufacturer: XXXXXXXX */
++  char fbw_system_manufacturer[FLX_EEV2_F_SYSTEM_MANUFACTURER + 1];
++
++  /* System Manufacturing Date: mm-dd-yy */
++  uint8_t fbw_system_manufacturing_date[10];
++
++  /* PCB Manufacturer: XXXXXXXXX */
++  char fbw_pcb_manufacturer[FLX_EEV2_F_PCB_MANUFACTURER + 1];
++
++  /* Assembled At: XXXXXXXX */
++  char fbw_assembled[FLX_EEV2_F_ASSEMBLED + 1];
++
++  /* Local MAC Address */
++  uint8_t fbw_local_mac[6];
++
++  /* Extended MAC Address */
++  uint8_t fbw_mac_base[6];
++
++  /* Extended MAC Address Size */
++  uint16_t fbw_mac_size;
++
++  /* Location on Fabric: "LEFT"/"RIGHT", "WEDGE", "LC" */
++  char fbw_location[FLX_EEV2_F_LOCATION + 1];
++
++  /* CRC8 */
++  uint8_t fbw_crc8;
++};
++
++struct bolt_eeprom_v5_st {
++  /* version number of the eeprom. Must be the first element */
++  uint8_t fbw_version;
++
++  /* Product Name */
++  char fbw_product_name[FLX_EEV5_F_PRODUCT_NAME + 1];
++
++  /* Hardware Revision */
++  char fbw_hw_rev[FLEX_EEPROM_F_HW_REV + 1];
++
++  /* Top Level 20 - Product Part Number: XX-XXXXXX */
++  char fbw_product_number[FLX_EEV5_F_PRODUCT_NUMBER + 2];
++
++  /* System Assembly Part Number XXX-XXXXXX-XX */
++  char fbw_assembly_number[FLX_EEV5_F_ASSEMBLY_NUMBER + 2];
++
++  /* Facebook PCBA Part Number: XXX-XXXXXXX-XX */
++  char fbw_facebook_pcba_number[FLX_EEV5_F_FACEBOOK_PCBA_NUMBER + 2];
++
++  /* Facebook PCB Part Number: XXX-XXXXXXX-XX */
++  char fbw_facebook_pcb_number[FLX_EEV5_F_FACEBOOK_PCB_NUMBER + 3];
++
++  /* ODM PCB Part Number: XXXXXXXXXXXX */
++  char fbw_odm_pcba_number[FLX_EEV5_F_ODM_PCBA_NUMBER + 2];
++
++  /* ODM PCB Serial Number: XXXXXXXXXXXX */
++  char fbw_odm_pcba_serial[FLX_EEV5_F_ODM_PCBA_SERIAL + 1];
++
++  /* Product Production State */
++  uint8_t fbw_production_state;
++
++  /* Product Version */
++  char fbw_product_version[FLEX_EEPROM_F_PROD_VERS + 1];
++
++  /* Product Serial Number: XXXXXXXX */
++  char fbw_product_serial[FLX_EEV5_F_PRODUCT_SERIAL + 1];
++
++  /* Product Asset Tag: XXXXXXXX */
++  char fbw_product_asset[FLX_EEV5_F_PRODUCT_ASSET + 1];
++
++  /* System Manufacturer: XXXXXXXX */
++  char fbw_system_manufacturer[FLX_EEV5_F_SYSTEM_MANUFACTURER + 1];
++
++  /* New System Manufacturing Date: Day, Month DayofMonth Year */
++  char fbw_system_manufacturing_date[FBW_EEPROM_F_SYSTEM_MANU_DATE_v3 + 5];
++
++  /* PCB Manufacturer: XXXXXXXXX */
++  char fbw_pcb_manufacturer[FLX_EEV5_F_PCB_MANUFACTURER + 1];
++
++  /* Assembled At: XXXXXXXX */
++  char fbw_assembled[FLX_EEV5_F_ASSEMBLED + 1];
++
++  /* Local MAC Address */
++  uint8_t fbw_local_mac[6];
++
++  /* Extended MAC Address */
++  uint8_t fbw_mac_base[6];
++
++  /* Extended MAC Address Size */
++  uint8_t fbw_mac_size;
++
++  /* Location on Fabric: "LEFT"/"RIGHT", "WEDGE", "LC" */
++  char fbw_location[FLX_EEV5_F_LOCATION + 1];
++
++  /* CRC8 */
++  uint8_t fbw_crc8;
++};
++
++
++struct bolt_eeprom_gn {
++  /* version number of the eeprom. Must be the first element */
++  uint16_t fbw_version;
++
++  /* Product Name */
++  char fbw_product_name[FBW_EEPROM_F_PRODUCT_NAME];
++
++  /* Top Level 20 - Product Part Number: XX-XXXXXX */
++  char fbw_product_number[FBW_EEPROM_F_PRODUCT_NUMBER];
++
++  /* System Assembly Part Number XXX-XXXXXX-XX */
++  char fbw_assembly_number[FBW_EEPROM_F_ASSEMBLY_NUMBER];
++
++  /* Bolt PCBA Part Number: XXX-XXXXXXX-XX */
++  char fbw_facebook_pcba_number[FBW_EEPROM_F_FACEBOOK_PCBA_NUMBER];
++
++  /* Bolt PCB Part Number: XXX-XXXXXXX-XX */
++  char fbw_facebook_pcb_number[FBW_EEPROM_F_FACEBOOK_PCB_NUMBER];
++
++  /* ODM PCB Part Number: XXXXXXXXXXXX */
++  char fbw_odm_pcba_number[FBW_EEPROM_F_ODM_PCBA_NUMBER];
++
++  /* ODM PCB Serial Number: XXXXXXXXXXXX */
++  char fbw_odm_pcba_serial[FBW_EEPROM_F_ODM_PCBA_SERIAL];
++
++  /* Product Production State */
++  uint16_t fbw_production_state;
++
++  /* Product Version */
++  uint8_t fbw_product_version;
++
++  /* Product Sub Version */
++  uint8_t fbw_product_subversion;
++
++  /* Product Serial Number: XXXXXXXX */
++  char fbw_product_serial[FBW_EEPROM_F_PRODUCT_SERIAL];
++
++  /* Product Asset Tag: XXXXXXXX */
++  char fbw_product_asset[FBW_EEPROM_F_PRODUCT_ASSET];
++
++  /* System Manufacturer: XXXXXXXX */
++  char fbw_system_manufacturer[FBW_EEPROM_F_SYSTEM_MANUFACTURER];
++
++  /* System Manufacturing Date:  MM/DD/YYYY */
++  char fbw_system_manufacturing_date[FBW_EEPROM_F_SYSTEM_MANU_DATE];
++
++  /* PCB Manufacturer: XXXXXXXXX */
++  char fbw_pcb_manufacturer[FBW_EEPROM_F_PCB_MANUFACTURER];
++
++  /* Assembled At: XXXXXXXX */
++  char fbw_assembled[FBW_EEPROM_F_ASSEMBLED];
++
++  /* Local MAC Address */
++  char fbw_local_mac[FBW_EEPROM_F_LOCAL_MAC];
++
++  /* Extended MAC Address */
++  char fbw_mac_base[FBW_EEPROM_F_EXT_MAC_BASE];
++
++  /* Extended MAC Address Size */
++  uint16_t fbw_mac_size;
++
++  /* Location on Fabric: "LEFT"/"RIGHT", "WEDGE", "LC" */
++  char fbw_location[FBW_EEPROM_F_LOCATION];
++
++  /* CRC8 */
++  uint8_t fbw_crc8;
++};
++
++
++static inline void flx_copy_uint8(uint8_t *val, const uint8_t** src,
++                                  int src_len)
++{
++  assert(src_len >= sizeof(*val));
++  *val = **src;
++  (*src) += src_len;
++}
++
++static inline void flx_copy_uint16(uint16_t *val, const uint8_t** src,
++                                  int src_len)
++{
++  assert(src_len >= sizeof(*val));
++  *val = (**src) | ((*(*src + 1)) << 8);
++  (*src) += src_len;
++}
++
++static inline void flx_strcpy(char *dst, int dst_len,
++                              const uint8_t **src, int src_len)
++{
++  assert(dst_len >= src_len + 1);    /* larger because of '\0' */
++  strncpy(dst, (char *)*src, src_len);
++  dst[src_len + 1] = '\0';
++  (*src) += src_len;
++}
++
++static inline void flx_copy_product_number(
++    char *dst, int dst_len, const uint8_t **src, int src_len)
++{
++  int i;
++  const uint8_t *cur = *src;
++  /* 12 chars in the format of PAXXXXXXX-XXX, 2 additional chars */
++  assert(dst_len >= src_len + 2);
++  for (i = 0; i < 9; i++) {
++    *dst++ = *cur++;
++  }
++  *dst++ = '-';
++  for (i = 0; i < 3; i++) {
++    *dst++ = *cur++;
++  }
++  *dst = '\0';
++  (*src) += src_len;
++}
++
++static inline void flx_copy_assembly_number(
++    char *dst, int dst_len, const uint8_t **src, int src_len)
++{
++  int i;
++  const uint8_t *cur = *src;
++  /* 12 chars in the format of PAXXXXXXX-XXX, 2 additional chars */
++  assert(dst_len >= src_len + 2);
++  for (i = 0; i < 9; i++) {
++    *dst++ = *cur++;
++  }
++  *dst++ = '-';
++  for (i = 0; i < 3; i++) {
++    *dst++ = *cur++;
++  }
++  *dst = '\0';
++  (*src) += src_len;
++}
++
++static uint8_t flx_crc8(const uint8_t *buf, int len)
++{
++  uint8_t crc = 0;
++  uint8_t tmp;
++
++  while (len--) {
++    uint8_t extract = *buf++;
++    for (tmp = 8; tmp; tmp--) {
++      uint8_t sum = (crc ^ extract) & 0x01;
++      crc >>= 1;
++      if (sum) {
++        crc ^= 0x8c;
++      }
++      extract >>= 1;
++    }
++  }
++  return crc;
++}
++
++static inline void flx_copy_facebook_pcba_part(
++    char *dst, int dst_len, const uint8_t **src, int src_len)
++{
++  int i;
++  const uint8_t *cur = *src;
++  /* 12 chars in the format of PBXXXXXXX-XXX, 2 additional chars */
++  assert(dst_len >= src_len + 2);
++  for (i = 0; i < 9; i++) {
++    *dst++ = *cur++;
++  }
++  *dst++ = '-'; 
++  for (i = 0; i < 3; i++) {
++    *dst++ = *cur++;
++  }
++  *dst = '\0';
++  (*src) += src_len;
++}
++
++static inline void flx_copy_facebook_pcb_part(
++    char *dst, int dst_len, const uint8_t **src, int src_len)
++{
++  int i;
++  const uint8_t *cur = *src;
++  /* 11 chars in the format of PAXX-XXXXX-XX, 3 additional chars */
++  assert(dst_len >= src_len + 3);
++  for (i = 0; i < 4; i++) {
++    *dst++ = *cur++;
++  }
++  *dst++ = '-';
++  for (i = 0; i < 5; i++) {
++    *dst++ = *cur++;
++  }
++  *dst++ = '-';
++  for (i = 0; i < 2; i++) {
++    *dst++ = *cur++;
++  }
++  *dst = '\0';
++  (*src) += src_len;
++}
++
++static inline void flx_copy_date_v5(
++    char *dst, int dst_len, const uint8_t **src, int src_len)
++{
++  int i;
++  const uint8_t *cur = *src;
++  /* 12 chars in the format Day Mon DayofMonth, Year, 5 additional chars */
++  assert(dst_len >= src_len + 5);
++
++  for (i = 0; i < 3; i++) {
++    *dst++ = *cur++;
++  }
++  *dst++ = ' ';
++
++  for (i = 0; i < 3; i++) {
++    *dst++ = *cur++;
++  }
++  *dst++ = ' ';
++
++  for (i = 0; i < 2; i++) {
++    *dst++ = *cur++;
++  }
++  *dst++ = ',';
++  *dst++ = ' ';
++
++  for (i = 0; i < 4; i++) {
++    *dst++ = *cur++;
++  }
++
++  *dst = '\0';
++
++  (*src) += src_len;
++}
++
++static inline void flx_copy_date_v2(
++    char *dst, int dst_len, const uint8_t **src, int src_len)
++{
++  const uint8_t *cur = *src;
++  uint16_t year;
++  uint8_t month;
++  uint8_t day;
++  /* mm-dd-yy in output */
++  assert(dst_len >= 9);
++  /* input is 4 bytes YY YY MM DD */
++  assert(src_len >= 4);
++  flx_copy_uint16(&year, &cur, 2);
++  flx_copy_uint8(&month, &cur, 1);
++  flx_copy_uint8(&day, &cur, 1);
++  snprintf(dst, dst_len, "%02d-%02d-%02d", month % 13, day % 32, year % 100);
++  (*src) += src_len;
++}
++
++static inline uint8_t _a2v(const uint8_t *a)
++{
++  uint8_t v = *a;
++  if ('0' <= v && v <= '9') {
++    return v - '0';
++  }
++  if ('a' <= v && v <= 'z') {
++    return v - 'a' + 10;
++  }
++  if ('A' <= v && v <= 'Z') {
++    return v - 'A' + 10;
++  }
++  return 0;
++}
++
++static inline void flx_copy_mac(
++    uint8_t* dst, int dst_len, const uint8_t **src, int src_len)
++{
++  int i;
++  const uint8_t *cur = *src;
++
++  assert(dst_len >= 6);
++  assert(src_len >= 12);
++
++  for (i = 0; i < 6; i++) {
++    *dst = (_a2v(cur) << 4) | _a2v(cur + 1);
++    dst++;
++    cur +=2 ;
++  }
++  (*src) += src_len;
++}
++
++
++void copy_data (char *src, char *dst, int bytes)
++{
++  if (*src == '\0')
++    return;
++
++  memcpy (dst, src, bytes);
++}
++
++void read_data (char *str, int size)
++{
++  char line[128], *eol;
++  memset(line, '\0', size);
++  fgets(line, sizeof line, ftxt);
++  if ((eol = strchr(line, '\n')))
++    *eol = '\0';
++  memcpy(str, line, size);
++}
++
++static int flx_fill_struct (struct bolt_eeprom_gn *eeprom)
++{
++  char buffer[8];
++  char buf2[16];
++
++  read_data (buf2, sizeof buf2);
++  eeprom->fbw_version = atoi(buf2);
++  syslog(LOG_NOTICE, "EEP ver from file       : %d", eeprom->fbw_version);
++  eeprom->fbw_version = htons(eeprom->fbw_version);
++  syslog(LOG_NOTICE, "EEP ver htons           : %d", eeprom->fbw_version);
++
++  read_data (eeprom->fbw_product_name, sizeof eeprom->fbw_product_name);
++  read_data (eeprom->fbw_product_number, sizeof eeprom->fbw_product_number);
++  read_data (eeprom->fbw_assembly_number, sizeof eeprom->fbw_assembly_number);
++  read_data (eeprom->fbw_facebook_pcba_number, sizeof eeprom->fbw_facebook_pcba_number);
++  read_data (eeprom->fbw_facebook_pcb_number, sizeof eeprom->fbw_facebook_pcb_number);
++  read_data (eeprom->fbw_odm_pcba_number, sizeof eeprom->fbw_odm_pcba_number);
++  read_data (eeprom->fbw_odm_pcba_serial, sizeof eeprom->fbw_odm_pcba_serial);
++  syslog(LOG_NOTICE, "Flex PCBA Ser from file : %s", eeprom->fbw_odm_pcba_serial);
++
++  read_data (buf2, sizeof buf2);
++  eeprom->fbw_production_state = atoi(buf2);
++  syslog(LOG_NOTICE, "Prod State from file    : %d",
++         eeprom->fbw_production_state);
++  eeprom->fbw_production_state = htons(eeprom->fbw_production_state);
++  syslog(LOG_NOTICE, "Prod State htons        : %d", 
++         eeprom->fbw_production_state);
++
++  read_data (buffer, sizeof buffer);
++  eeprom->fbw_product_version = (uint8_t)atoi(buffer);
++
++  read_data (buffer, sizeof buffer);
++  eeprom->fbw_product_subversion = (uint8_t)atoi(buffer);
++
++  read_data (eeprom->fbw_product_serial, sizeof eeprom->fbw_product_serial);
++  syslog(LOG_NOTICE, "System Serial from file : %s", eeprom->fbw_product_serial);
++  read_data (eeprom->fbw_product_asset, sizeof eeprom->fbw_product_asset);
++  syslog(LOG_NOTICE, "Asset Tag from file     : %s", eeprom->fbw_system_manufacturing_date);
++  read_data (eeprom->fbw_system_manufacturer, sizeof eeprom->fbw_system_manufacturer);
++  read_data (eeprom->fbw_system_manufacturing_date, sizeof eeprom->fbw_system_manufacturing_date);
++  syslog(LOG_NOTICE, "Mfg Date from file      : %s", eeprom->fbw_system_manufacturing_date);
++
++  read_data (eeprom->fbw_pcb_manufacturer, sizeof eeprom->fbw_pcb_manufacturer);
++  read_data (eeprom->fbw_assembled, sizeof eeprom->fbw_assembled);
++  read_data (eeprom->fbw_local_mac, sizeof eeprom->fbw_local_mac);
++  read_data (eeprom->fbw_mac_base, sizeof eeprom->fbw_mac_base);
++
++  read_data (buf2, sizeof buf2);
++  eeprom->fbw_mac_size = atoi(buf2);
++  syslog(LOG_NOTICE, "MAC sz from file        : %d", eeprom->fbw_mac_size);
++  eeprom->fbw_mac_size = htons(eeprom->fbw_mac_size);
++  syslog(LOG_NOTICE, "MAC sz  htons           : %d", 
++         eeprom->fbw_mac_size);
++
++  read_data (eeprom->fbw_location, sizeof eeprom->fbw_location);
++  syslog(LOG_NOTICE, "Location from file      : %s", eeprom->fbw_location);
++  read_data (buffer, sizeof buffer);
++  eeprom->fbw_crc8 = (uint8_t)atoi(buffer);
++
++  return 0;
++}
++
++static int
++v2_parse_buf(
++             const uint8_t *buf,
++             int len,
++             struct bolt_eeprom_v2_st *eeprom)
++{
++  int rc = 0;
++  const uint8_t* cur = buf;
++  uint16_t magic;
++  int crc_len;
++  uint8_t crc8;
++
++  memset(eeprom, 0, sizeof(*eeprom));
++
++  /* Verify the magic number */
++  flx_copy_uint16(&magic, &cur, FLX_EEV2_F_MAGIC);
++  if (magic != FBW_EEPROM_MAGIC_NUM) {
++    rc = EFAULT;
++    syslog(LOG_WARNING, "Unexpected magic word 0x%x", magic);
++    goto out;
++  }
++
++  /* Confirm the version number, should be 2 */
++  flx_copy_uint8(&eeprom->fbw_version, &cur, FLX_EEV2_F_VERSION);
++  syslog(LOG_NOTICE, "Detected EEPROM version %d", eeprom->fbw_version);
++  if (eeprom->fbw_version != FBW_EEPROM_VERSION2) {
++    syslog(LOG_WARNING, "Unsupported version %d for this upgrade",
++           eeprom->fbw_version);
++    goto out;
++  } else {
++    crc_len = FBW_EEPROM_V2_SIZE;
++  }
++  syslog(LOG_NOTICE, "Read EEPROM version     : %d",
++         eeprom->fbw_version);
++
++  /* Now read the eeprom and store the contents */
++  /* Product name: ASCII for 12 characters */
++  flx_strcpy(eeprom->fbw_product_name,
++             sizeof(eeprom->fbw_product_name),
++             &cur, FLX_EEV2_F_PRODUCT_NAME);
++  syslog(LOG_NOTICE, "V2 EEPROM product name  : %s",
++         eeprom->fbw_product_name);
++
++  /* Product Part #: 12 byte data shown as PAXXXXXXX-000 */
++  flx_copy_product_number(eeprom->fbw_product_number,
++                          sizeof(eeprom->fbw_product_number),
++                          &cur, FLX_EEV2_F_PRODUCT_NUMBER);
++  syslog(LOG_NOTICE, "V2 EEPROM product num   : %s",
++         eeprom->fbw_product_number);
++
++  /* System Assembly Part Number: XXX-XXXXXX-XX */
++  flx_copy_assembly_number(eeprom->fbw_assembly_number,
++                           sizeof(eeprom->fbw_assembly_number),
++                           &cur, FLX_EEV2_F_ASSEMBLY_NUMBER);
++
++  /* Partner PCBA Part Number: PAXX-XXXXX-XX */
++  flx_copy_facebook_pcba_part(eeprom->fbw_facebook_pcba_number,
++                              sizeof(eeprom->fbw_facebook_pcba_number),
++                              &cur, FLX_EEV2_F_FACEBOOK_PCBA_NUMBER);
++
++  /* Partner PCB Part Number: PBXXXXXXX-XXX */
++  flx_copy_facebook_pcb_part(eeprom->fbw_facebook_pcb_number,
++                             sizeof(eeprom->fbw_facebook_pcb_number),
++                             &cur, FLX_EEV2_F_FACEBOOK_PCB_NUMBER);
++
++  /* Flex PCBA Part Number: PAXX-XXXXX-XX */
++  flx_copy_facebook_pcba_part(eeprom->fbw_odm_pcba_number,
++                              sizeof(eeprom->fbw_odm_pcba_number),
++                              &cur, FLX_EEV2_F_ODM_PCBA_NUMBER);
++
++  /* Flex PCBA Serial Number: XXXXXXXXXXXX */
++  flx_strcpy(eeprom->fbw_odm_pcba_serial,
++             sizeof(eeprom->fbw_odm_pcba_serial),
++             &cur, FLX_EEV2_F_ODM_PCBA_SERIAL);
++
++  /* Product Production State */
++  flx_copy_uint8(&eeprom->fbw_production_state,
++                 &cur, FLX_EEV2_F_PRODUCT_STATE);
++
++  /* Product Version */
++  flx_copy_uint8(&eeprom->fbw_product_version,
++                 &cur, FLX_EEV2_F_PRODUCT_VERSION);
++
++  /* Product Sub Version */
++  flx_copy_uint8(&eeprom->fbw_product_subversion,
++                 &cur, FLX_EEV2_F_PRODUCT_SUBVERSION);
++
++  /* Product Serial Number: XXXXXXXX */
++  flx_strcpy(eeprom->fbw_product_serial,
++             sizeof(eeprom->fbw_product_serial),
++             &cur, FLX_EEV2_F_PRODUCT_SERIAL);
++  syslog(LOG_NOTICE, "V2 EEPROM product ser   : %s",
++         eeprom->fbw_product_serial);
++
++  /* Product Asset Tag: XXXXXXXX */
++  flx_strcpy(eeprom->fbw_product_asset,
++             sizeof(eeprom->fbw_product_asset),
++             &cur, FLX_EEV2_F_PRODUCT_ASSET);
++  /* System Manufacturer: XXXXXXXX */
++  flx_strcpy(eeprom->fbw_system_manufacturer,
++             sizeof(eeprom->fbw_system_manufacturer),
++             &cur, FLX_EEV2_F_SYSTEM_MANUFACTURER);
++
++  /* System Manufacturing Date: mm-dd-yy */
++  flx_copy_date_v2(eeprom->fbw_system_manufacturing_date,
++                   sizeof(eeprom->fbw_system_manufacturing_date),
++                   &cur, FLX_EEV2_F_SYSTEM_MANU_DATE);
++  syslog(LOG_NOTICE, "V2 EEPROM Mfg Date      : %s",
++         eeprom->fbw_system_manufacturing_date);
++
++  /* PCB Manufacturer: XXXXXXXXX */
++  flx_strcpy(eeprom->fbw_pcb_manufacturer,
++             sizeof(eeprom->fbw_pcb_manufacturer),
++             &cur, FLX_EEV2_F_PCB_MANUFACTURER);
++
++  /* Assembled At: XXXXXXXX */
++  flx_strcpy(eeprom->fbw_assembled,
++             sizeof(eeprom->fbw_assembled),
++             &cur, FLX_EEV2_F_ASSEMBLED);
++
++  /* Local MAC Address */
++  flx_copy_mac(eeprom->fbw_local_mac,
++               sizeof(eeprom->fbw_local_mac),
++               &cur, FLX_EEV2_F_LOCAL_MAC);
++
++  /* Extended MAC Address */
++  flx_copy_mac(eeprom->fbw_mac_base,
++               sizeof(eeprom->fbw_mac_base),
++               &cur, FLX_EEV2_F_EXT_MAC_BASE);
++
++  /* Extended MAC Address Size */
++  flx_copy_uint16(&eeprom->fbw_mac_size,
++                  &cur,FLX_EEV2_F_EXT_MAC_SIZE);
++
++  /* Location on Fabric: "LEFT"/"RIGHT", "WEDGE", "LC" */
++  flx_strcpy(eeprom->fbw_location,
++             sizeof(eeprom->fbw_location),
++             &cur, FLX_EEV2_F_LOCATION);
++
++  /* CRC8 */
++  flx_copy_uint8(&eeprom->fbw_crc8,
++                 &cur, FLX_EEV2_F_CRC8);
++
++  syslog(LOG_NOTICE, "V2 EEPROM CRC           : 0x%x", eeprom->fbw_crc8);
++
++ out:
++  return rc;
++}
++
++int
++v2_parse(struct bolt_eeprom_v2_st *v2)
++{
++  int rc = 0;
++  const char *fn = FBW_EEPROM_FILE;
++  uint32_t len;
++  FILE *fin;
++  char buf[FBW_EEPROM_SIZE];
++
++  if (!v2) {
++    return -EINVAL;
++  }
++
++  fin = fopen(fn, "r");
++  if (fin == NULL) {
++    rc = errno;
++    syslog(LOG_WARNING, "Failed to open %s", FBW_EEPROM_FILE);
++    goto out;
++  }
++
++  /* check the file size */
++  rc = fseek(fin, 0, SEEK_END);
++  if (rc) {
++    rc = errno;
++    syslog(LOG_WARNING, "Failed to seek to the end of %s", FBW_EEPROM_FILE);
++    goto out;
++  }
++
++  len = ftell(fin);
++  if (len < FBW_EEPROM_SIZE) {
++    rc = ENOSPC;
++    syslog(LOG_WARNING, "File '%s' is too small (%u < %u)", FBW_EEPROM_FILE,
++            len, FBW_EEPROM_SIZE);
++    goto out;
++  }
++
++  /* go back to the beginning of the file */
++  rewind(fin);
++
++  rc = fread(buf, 1, sizeof(buf), fin);
++  if (rc < sizeof(buf)) {
++    syslog(LOG_WARNING, "Failed to complete the read. Only got %d", rc);
++    rc = ENOSPC;
++    goto out;
++  }
++
++  rc = v2_parse_buf((const uint8_t *)buf, sizeof(buf), v2);
++  if (rc) {
++    goto out;
++  }
++
++ out:
++
++  if (fin) {
++    fclose(fin);
++  }
++
++  return rc;
++}
++
++
++static int
++v5_parse_buf(
++             const uint8_t *buf,
++             int len,
++             struct bolt_eeprom_v5_st *eeprom)
++{
++  int rc = 0;
++  const uint8_t* cur = buf;
++  uint16_t magic;
++  int crc_len;
++  uint8_t crc8;
++
++  memset(eeprom, 0, sizeof(struct bolt_eeprom_v5_st));
++
++  /* Verify the magic number */
++  flx_copy_uint16(&magic, &cur, FLX_EEV5_F_MAGIC);
++  if (magic != FLEX_EEPROM_MAGIC_NUM) {
++    rc = EFAULT;
++    syslog(LOG_WARNING, "Unexpected magic word 0x%x", magic);
++    goto out;
++  }
++
++  /* Confirm the version number, should be 2 */
++  flx_copy_uint8(&eeprom->fbw_version, &cur, FLX_EEV5_F_VERSION);
++  syslog(LOG_NOTICE, "Read EEPROM version     : %d",
++         eeprom->fbw_version);
++  if (eeprom->fbw_version != FBW_EEPROM_VERSION5) {
++    syslog(LOG_WARNING, "Expected EEPROM version 5, exiting");
++    rc = EEXIST;
++    goto out;
++  }
++
++  /* Product name: ASCII for 12 characters */
++  flx_strcpy(eeprom->fbw_product_name,
++             sizeof(eeprom->fbw_product_name),
++             &cur, FLX_EEV5_F_PRODUCT_NAME);
++  syslog(LOG_NOTICE, "V5 EEPROM product name  : %s",
++         eeprom->fbw_product_name);
++
++  /* Hardware Revsion */
++  flx_strcpy(eeprom->fbw_hw_rev,
++             sizeof(eeprom->fbw_hw_rev),
++             &cur, FLEX_EEPROM_F_HW_REV);
++  syslog(LOG_NOTICE, "V5 EEPROM hardware rev  : %s",
++         eeprom->fbw_hw_rev);
++
++  /* Product Part #: 12 byte data shown as PAXXXXXXX-000 */
++  flx_copy_product_number(eeprom->fbw_product_number,
++                          sizeof(eeprom->fbw_product_number),
++                          &cur, FLX_EEV5_F_PRODUCT_NUMBER);
++  syslog(LOG_NOTICE, "V5 EEPROM product num   : %s",
++         eeprom->fbw_product_number);
++
++  /* System Assembly Part Number: XXX-XXXXXX-XX */
++  flx_copy_assembly_number(eeprom->fbw_assembly_number,
++                           sizeof(eeprom->fbw_assembly_number),
++                           &cur, FLX_EEV5_F_ASSEMBLY_NUMBER);
++
++  /* Partner PCBA Part Number: PAXX-XXXXX-XX */
++  flx_copy_facebook_pcba_part(eeprom->fbw_facebook_pcba_number,
++                              sizeof(eeprom->fbw_facebook_pcba_number),
++                              &cur, FLX_EEV5_F_FACEBOOK_PCBA_NUMBER);
++
++  /* Partner PCB Part Number: PBXXXXXXX-XXX */
++  flx_copy_facebook_pcb_part(eeprom->fbw_facebook_pcb_number,
++                             sizeof(eeprom->fbw_facebook_pcb_number),
++                             &cur, FLX_EEV5_F_FACEBOOK_PCB_NUMBER);
++
++  /* Flex PCBA Part Number: PAXX-XXXXX-XX */
++  flx_copy_facebook_pcba_part(eeprom->fbw_odm_pcba_number,
++                              sizeof(eeprom->fbw_odm_pcba_number),
++                              &cur, FLX_EEV5_F_ODM_PCBA_NUMBER);
++
++  /* Flex PCBA Serial Number: XXXXXXXXXXXX */
++  flx_strcpy(eeprom->fbw_odm_pcba_serial,
++             sizeof(eeprom->fbw_odm_pcba_serial),
++             &cur, FLX_EEV5_F_ODM_PCBA_SERIAL);
++
++  /* Product Production State */
++  flx_copy_uint8(&eeprom->fbw_production_state,
++                 &cur, FLX_EEV5_F_PRODUCT_STATE);
++
++  /* Product Version */
++  flx_strcpy(eeprom->fbw_product_version,
++             sizeof(eeprom->fbw_product_version),
++             &cur, FLEX_EEPROM_F_PROD_VERS);
++
++  /* Product Serial Number: XXXXXXXX */
++  flx_strcpy(eeprom->fbw_product_serial,
++             sizeof(eeprom->fbw_product_serial),
++             &cur, FLX_EEV5_F_PRODUCT_SERIAL);
++  syslog(LOG_NOTICE, "V5 EEPROM product ser   : %s",
++         eeprom->fbw_product_serial);
++
++  /* Product Asset Tag: XXXXXXXX */
++  flx_strcpy(eeprom->fbw_product_asset,
++             sizeof(eeprom->fbw_product_asset),
++             &cur, FLX_EEV5_F_PRODUCT_ASSET);
++  syslog(LOG_NOTICE, "V5 EEPROM product asset : %s",
++         eeprom->fbw_product_asset);
++
++  /* System Manufacturer: XXXXXXXX */
++  flx_strcpy(eeprom->fbw_system_manufacturer,
++             sizeof(eeprom->fbw_system_manufacturer),
++             &cur, FLX_EEV5_F_SYSTEM_MANUFACTURER);
++
++  /* System Manufacturing Date: mm-dd-yy */
++  flx_copy_date_v5(eeprom->fbw_system_manufacturing_date,
++                   sizeof(eeprom->fbw_system_manufacturing_date),
++                   &cur, FBW_EEPROM_F_SYSTEM_MANU_DATE_v3);
++  syslog(LOG_NOTICE, "V5 EEPROM Mfg Date      : %s",
++         eeprom->fbw_system_manufacturing_date);
++
++  /* PCB Manufacturer: XXXXXXXXX */
++  flx_strcpy(eeprom->fbw_pcb_manufacturer,
++             sizeof(eeprom->fbw_pcb_manufacturer),
++             &cur, FLX_EEV5_F_PCB_MANUFACTURER);
++
++  /* Assembled At: XXXXXXXX */
++  flx_strcpy(eeprom->fbw_assembled,
++             sizeof(eeprom->fbw_assembled),
++             &cur, FLX_EEV5_F_ASSEMBLED);
++
++  /* Local MAC Address */
++  flx_copy_mac(eeprom->fbw_local_mac,
++               sizeof(eeprom->fbw_local_mac),
++               &cur, FLX_EEV5_F_LOCAL_MAC);
++
++  /* Extended MAC Address */
++  flx_copy_mac(eeprom->fbw_mac_base,
++               sizeof(eeprom->fbw_mac_base),
++               &cur, FLX_EEV5_F_EXT_MAC_BASE);
++
++  /* Extended MAC Address Size */
++  flx_copy_uint8(&eeprom->fbw_mac_size,
++                 &cur,FLX_EEV5_F_EXT_MAC_SIZE);
++
++  /* Location on Fabric: "LEFT"/"RIGHT", "WEDGE", "LC" */
++  flx_strcpy(eeprom->fbw_location,
++             sizeof(eeprom->fbw_location),
++             &cur, FLX_EEV5_F_LOCATION);
++
++  /* CRC8 */
++  flx_copy_uint8(&eeprom->fbw_crc8,
++                 &cur, FLX_EEV5_F_CRC8);
++
++  syslog(LOG_NOTICE, "V5 EEPROM CRC           : 0x%x", eeprom->fbw_crc8);
++
++ out:
++  return rc;
++}
++
++int
++v5_parse(struct bolt_eeprom_v5_st *v5)
++{
++  int rc = 0;
++  const char *fn = FBW_EEPROM_FILE;
++  uint32_t len;
++  FILE *fin;
++  char buf[FBW_EEPROM_SIZE];
++
++  if (!v5) {
++    return -EINVAL;
++  }
++
++  fin = fopen(fn, "r");
++  if (fin == NULL) {
++    rc = errno;
++    syslog(LOG_WARNING, "Failed to open %s", FBW_EEPROM_FILE);
++    goto out;
++  }
++
++  /* check the file size */
++  rc = fseek(fin, 0, SEEK_END);
++  if (rc) {
++    rc = errno;
++    syslog(LOG_WARNING, "Failed to seek to the end of %s", FBW_EEPROM_FILE);
++    goto out;
++  }
++
++  len = ftell(fin);
++  if (len < FBW_EEPROM_SIZE) {
++    rc = ENOSPC;
++    syslog(LOG_WARNING, "File '%s' is too small (%u < %u)", FBW_EEPROM_FILE,
++            len, FBW_EEPROM_SIZE);
++    goto out;
++  }
++
++  /* go back to the beginning of the file */
++  rewind(fin);
++
++  rc = fread(buf, 1, sizeof(buf), fin);
++  if (rc < sizeof(buf)) {
++    syslog(LOG_WARNING, "Failed to complete the read. Only got %d", rc);
++    rc = ENOSPC;
++    goto out;
++  }
++
++  rc = v5_parse_buf((const uint8_t *)buf, sizeof(buf), v5);
++  if (rc) {
++    goto out;
++  }
++
++ out:
++//  syslog(LOG_NOTICE, "wedge_eeprom_parse: return code 0x%x", rc);
++
++  if (fin) {
++    fclose(fin);
++  }
++
++  return rc;
++}
++
++static int
++get_version(uint8_t *eep_ver)
++{
++  int rc = 0;
++  const char *fn = FBW_EEPROM_FILE;
++  char buf[FBW_EEPROM_SIZE];
++  FILE *fin;
++  uint16_t magic;
++  uint8_t vers = 0;
++  uint32_t len;
++  const uint8_t *cur = buf;
++
++  fin = fopen(fn, "r");
++  if (fin == NULL) {
++    rc = errno;
++    syslog(LOG_WARNING, "Failed to open %s", FBW_EEPROM_FILE);
++    goto out;
++  }
++
++  /* check the file size */
++  rc = fseek(fin, 0, SEEK_END);
++  if (rc) {
++    rc = errno;
++    syslog(LOG_WARNING, "Failed to seek to the end of %s", FBW_EEPROM_FILE);
++    goto out;
++  }
++
++  len = ftell(fin);
++  if (len < FBW_EEPROM_SIZE) {
++    rc = ENOSPC;
++    syslog(LOG_WARNING, "File '%s' is too small (%u < %u)", FBW_EEPROM_FILE,
++            len, FBW_EEPROM_SIZE);
++    goto out;
++  }
++
++  syslog(LOG_NOTICE, "EEPROM file size        : %dKB", len/1024);
++  /* go back to the beginning of the file */
++  rewind(fin);
++
++  rc = fread(buf, 1, sizeof(buf), fin);
++  if (rc < sizeof(buf)) {
++    syslog(LOG_WARNING, "Failed to complete the read. Only got %d", rc);
++    rc = ENOSPC;
++    goto out;
++  }
++
++  rc = 0;
++  /* Get the magic number */
++  flx_copy_uint16(&magic, &cur, FBW_EEPROM_F_MAGIC);
++  syslog(LOG_NOTICE, "Detected magic number   : 0x%X", magic);
++
++  if (magic == FLEX_EEPROM_MAGIC_NUM) {
++    syslog(LOG_NOTICE, "Detected EEPROM version : 5");
++    *eep_ver = FBW_EEPROM_VERSION5;
++  } else if (magic == FBW_EEPROM_MAGIC_NUM) {
++    syslog(LOG_NOTICE, "Detected EEPROM version : 2");
++    *eep_ver = FBW_EEPROM_VERSION2;
++  } else {
++    /*
++     * Could be the latest version.  Rewind the pointer and
++     * try reading the magic again
++     */
++    char magics[FBW_EEPROM_F_MAGIC+1];
++
++    cur = buf;
++    flx_strcpy(magics, sizeof(magics), &cur, FBW_EEPROM_F_MAGIC);
++    syslog(LOG_NOTICE, "Detected magic number   : %s", magics);
++    if (strcmp(LI_EEPROM_MAGIC_NUM, magics) == 0) {
++      syslog(LOG_NOTICE, "Detected EEPROM version : 1");
++      *eep_ver = LI_EEPROM_VERSION1;
++    } else {
++      *eep_ver = 0;
++    }
++  }
++
++ out:
++
++  if (fin) {
++    fclose(fin);
++  }
++
++  return rc;
++}
++
++int main (int argc, char **argv)
++{
++  int rc = 0;
++  const char *fn = FBW_EEPROM_FILE;
++  char buf[FBW_EEPROM_SIZE];
++  struct bolt_eeprom_gn eeprom;
++  struct bolt_eeprom_v2_st v2_ee;
++  struct bolt_eeprom_v5_st v5_ee;
++  FILE *fin;
++  uint8_t crc_len;
++  uint8_t eep_version;
++  char tmp_buf[2];
++  int i;
++ 
++  /* First get the current eeprom version */ 
++  rc = get_version(&eep_version);
++  if (rc) {
++    syslog(LOG_WARNING, "Failed to read current EEPROM version");
++    printf("Failed to read current EEPROM version\n");
++    goto out;
++  }
++
++  switch (eep_version) {
++  case FBW_EEPROM_VERSION2:
++    rc = v2_parse(&v2_ee);
++    if (rc) {
++      syslog(LOG_WARNING, "Failed to parse V2 EEPROM");
++      printf("Failed to parse V2 EEPROM\n");
++      goto out;
++    }
++
++    syslog(LOG_NOTICE, "Storing these EEPROM v2 parameters\n");
++    syslog(LOG_NOTICE, "%-24s : %s\n", "Flex PCBA Serial Number", v2_ee.fbw_odm_pcba_serial);
++    syslog(LOG_NOTICE, "%-24s : %s\n", "System Serial Number", v2_ee.fbw_product_serial);
++    syslog(LOG_NOTICE, "%-24s : %02X:%02X:%02X:%02X:%02X:%02X\n", "BMC MAC",
++           v2_ee.fbw_local_mac[0], v2_ee.fbw_local_mac[1],
++           v2_ee.fbw_local_mac[2], v2_ee.fbw_local_mac[3],
++           v2_ee.fbw_local_mac[4], v2_ee.fbw_local_mac[5]);
++
++    break;
++
++  case FBW_EEPROM_VERSION5:
++    rc = v5_parse(&v5_ee);
++    if (rc) {
++      syslog(LOG_WARNING, "Failed to parse V5 EEPROM");
++      printf("Failed to parse V5 EEPROM\n");
++      goto out;
++    }
++
++    syslog(LOG_NOTICE, "Storing these EEPROM v5 parameters\n");
++    syslog(LOG_NOTICE, "%-24s : %s\n", "Flex PCBA Serial Number", v5_ee.fbw_odm_pcba_serial);
++    syslog(LOG_NOTICE, "%-24s : %s\n", "System Serial Number", v5_ee.fbw_product_serial);
++    syslog(LOG_NOTICE, "%-24s : %02X:%02X:%02X:%02X:%02X:%02X\n", "BMC MAC",
++           v5_ee.fbw_local_mac[0], v5_ee.fbw_local_mac[1],
++           v5_ee.fbw_local_mac[2], v5_ee.fbw_local_mac[3],
++           v5_ee.fbw_local_mac[4], v5_ee.fbw_local_mac[5]);
++
++    break;
++
++  case LI_EEPROM_VERSION1:
++    printf("EEPROM version 1 is current, no need to upgrade\n");
++    syslog(LOG_NOTICE, "EEPROM version 1 is current, no need to upgrade");
++    goto out;
++    break;
++
++  default:
++    syslog(LOG_WARNING, "Invalid EEPROM version");
++    return;
++    break;
++  }
++
++
++  ftxt = fopen(BOARD_ID_EEPROM_TXT_FILE, "r+");
++  if (ftxt == NULL) {
++    rc = errno;
++    syslog(LOG_WARNING, "Failed to open %s", BOARD_ID_EEPROM_TXT_FILE);
++    printf("Failed to open %s\n", BOARD_ID_EEPROM_TXT_FILE);
++
++    goto out;
++  }
++
++  fin = fopen(fn, "r+");
++  if (fin == NULL) {
++    rc = errno;
++    syslog(LOG_WARNING, "Failed to open %s", FBW_EEPROM_FILE);
++    goto out;
++  }
++
++  rc = fread(buf, 1, sizeof buf, fin);
++  if (rc < sizeof buf) {
++    syslog(LOG_WARNING, "Failed to complete read, only got %d bytes", rc);
++    printf("Failed to complete read, only got %d bytes\n");
++    rc = ENOSPC;
++    goto out;
++  }
++  memcpy ((char*)&eeprom, (char*)buf+FBW_EEPROM_F_MAGIC, FBW_EEPROM_SIZE-FBW_EEPROM_F_MAGIC);
++
++  /* go back to the beginning of the file */
++  rewind(fin);
++
++  copy_data (LI_EEPROM_MAGIC_NUM, buf, FBW_EEPROM_F_MAGIC);
++  rc = fwrite(buf, 1, FBW_EEPROM_F_MAGIC, fin);
++  if (rc < 2) {
++    syslog(LOG_WARNING, "Failed to write magic number");
++    printf("Failed to write magic number\n");
++    goto out;
++  }
++
++  if (flx_fill_struct (&eeprom)) {
++    goto out;
++  } else {
++    crc_len = LI_EEPROM_V1_SIZE;
++  }
++
++  /* Fill in the archived fields */
++  syslog(LOG_NOTICE, "BEFORE RESTORING ARCHIVED ITEMS:");
++  syslog(LOG_NOTICE, "Product Asset Tag     : %s",
++         eeprom.fbw_product_asset);
++  syslog(LOG_NOTICE, "Product Serial Num    : %s",
++         eeprom.fbw_product_serial);
++  syslog(LOG_NOTICE, "Manufacturing date    : %s",
++         eeprom.fbw_system_manufacturing_date);
++  syslog(LOG_NOTICE, "Fabric Location       : %s",
++         eeprom.fbw_location);
++
++  char product_asset[FBW_EEPROM_F_PRODUCT_ASSET];
++  copy_data((char*)eeprom.fbw_product_asset,
++            (char*)product_asset,
++            sizeof eeprom.fbw_product_asset);
++
++  switch (eep_version) {
++    case FBW_EEPROM_VERSION2:
++    copy_data((char*)v2_ee.fbw_product_serial,
++              (char*)eeprom.fbw_product_serial,
++              sizeof v2_ee.fbw_product_serial);
++  
++    copy_data((char*)v2_ee.fbw_odm_pcba_serial,
++              (char*)eeprom.fbw_odm_pcba_serial,
++              sizeof v2_ee.fbw_odm_pcba_serial);
++  
++    /* Convert int MAC to string MAC */
++    memset(eeprom.fbw_local_mac, 0, sizeof eeprom.fbw_local_mac);
++    for (i=0; i<6; i++) {
++      sprintf(tmp_buf, "%02X", v2_ee.fbw_local_mac[i]);
++      strcat(eeprom.fbw_local_mac, tmp_buf);
++    }
++    break;
++
++  case FBW_EEPROM_VERSION5:
++    copy_data((char*)v5_ee.fbw_product_serial,
++              (char*)eeprom.fbw_product_serial,
++              sizeof v5_ee.fbw_product_serial);
++  
++    copy_data((char*)v5_ee.fbw_odm_pcba_serial,
++              (char*)eeprom.fbw_odm_pcba_serial,
++              sizeof v5_ee.fbw_odm_pcba_serial);
++  
++    /* Convert int MAC to string MAC */
++    memset(eeprom.fbw_local_mac, 0, sizeof eeprom.fbw_local_mac);
++    for (i=0; i<6; i++) {
++      sprintf(tmp_buf, "%02X", v5_ee.fbw_local_mac[i]);
++      strcat(eeprom.fbw_local_mac, tmp_buf);
++    }
++    break;
++
++  default:
++    syslog(LOG_NOTICE, "Invalid EEPROM version %d", eep_version);
++    printf("Invalid EEPROM version %d\n", eep_version);
++    goto out;
++  break;
++  }
++
++  syslog(LOG_NOTICE, "AFTER RESTORING ARCHIVED ITEMS:");
++  syslog(LOG_NOTICE, "Product Asset Tag     : %s",
++         eeprom.fbw_product_asset);
++  syslog(LOG_NOTICE, "Product Serial Num    : %s",
++         eeprom.fbw_product_serial);
++  syslog(LOG_NOTICE, "Manufacturing date    : %s",
++         eeprom.fbw_system_manufacturing_date);
++  syslog(LOG_NOTICE, "Fabric Location       : %s",
++         eeprom.fbw_location);
++
++  copy_data((char*)product_asset,
++            (char*)eeprom.fbw_product_asset,
++            sizeof product_asset);
++  syslog(LOG_NOTICE, "Restored Asset Tag    : %s",
++         eeprom.fbw_product_asset);
++
++  /* calculate based on all bytes but crc */
++  /* validate on all bytes, resulting in crc value 0 */
++  eeprom.fbw_crc8 = flx_crc8((void *) &eeprom, crc_len - 1) ^ FLEX_EEPROM_CRC8_CSUM;
++  ssize_t sz = sizeof eeprom;
++  rc = fwrite(&eeprom, 1, sz, fin);
++  if (rc < sz) {
++      syslog(LOG_WARNING,
++             "Failed to write entire EEPROM (%d bytes).  Wrote %d bytes",
++             sz, rc);
++      printf("Failed to write entire EEPROM (%d bytes).  Wrote %d bytes\n",
++             sz, rc);
++
++      goto out;
++  }
++  syslog(LOG_NOTICE, "Wrote all %d bytes to EEPROM", rc); 
++  rc = 0;
++
++out:
++  if (fin) {
++    fclose(fin);
++  }
++
++  if (ftxt) {
++    fclose(ftxt);
++  }
++
++  return rc;
++}
+-- 
+2.5.0
+

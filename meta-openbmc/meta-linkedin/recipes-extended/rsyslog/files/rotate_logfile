@@ -1,0 +1,5 @@
+#!/bin/sh
+
+mv /var/log/logfile /var/log/logfile.0
+touch /var/log/logfile
+

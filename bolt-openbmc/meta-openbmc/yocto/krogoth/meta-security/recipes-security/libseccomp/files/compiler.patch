@@ -1,0 +1,32 @@
+From fb3e84f6212333949ee3e410bb468bb06c289a1e Mon Sep 17 00:00:00 2001
+From: Andrei Dinu <andrei.adrianx.dinu@intel.com>
+Date: Fri, 28 Jun 2013 15:55:13 +0300
+Subject: [PATCH] libseccomp always used host compiler
+
+passing $CC at do_install() doesn't seem to have
+effect on the compiler used by libseccomp. Modified
+the compiler manually.
+
+Upstream Status: Inapropriate
+
+Signed-off-by: Andrei Dinu <andrei.adrianx.dinu@intel.com>
+---
+ macros.mk |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/macros.mk b/macros.mk
+index 9c62fa7..e219be6 100644
+--- a/macros.mk
++++ b/macros.mk
+@@ -66,7 +66,7 @@ AWK ?= awk
+ PYTHON ?= /usr/bin/env python
+ 
+ # we require gcc specific functionality
+-GCC ?= gcc
++GCC ?= $(CC)
+ 
+ INSTALL ?= install
+ 
+-- 
+1.7.9.5
+

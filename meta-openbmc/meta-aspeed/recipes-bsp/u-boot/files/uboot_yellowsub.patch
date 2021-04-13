@@ -1,0 +1,179 @@
+diff --git a/Makefile b/Makefile
+index 88128ec72a..ff5c2fde79 100644
+--- a/Makefile
++++ b/Makefile
+@@ -772,6 +772,7 @@ ALL-y += $(CONFIG_BUILD_TARGET:"%"=%)
+ endif
+ 
+ LDFLAGS_u-boot += $(LDFLAGS_FINAL)
++LDFLAGS_u-boot += $(call ld-option, --no-dynamic-linker)
+ ifneq ($(CONFIG_SYS_TEXT_BASE),)
+ LDFLAGS_u-boot += -Ttext $(CONFIG_SYS_TEXT_BASE)
+ endif
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index fe934a6a02..6b0a818aea 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -186,6 +186,10 @@ config TARGET_LIDELTAPOWER
+         bool "Support Linkedin delta powershelf"
+         select CPU_ARM926EJS
+ 
++config TARGET_LIYELLOWSUB
++        bool "Support Linkedin Yellowsub server"
++        select CPU_ARM926EJS
++
+ config ARCH_DAVINCI
+ 	bool "TI DaVinci"
+ 	select CPU_ARM926EJS
+diff --git a/board/fb-obmc/Kconfig b/board/fb-obmc/Kconfig
+index f33c828547..405c3ad0be 100644
+--- a/board/fb-obmc/Kconfig
++++ b/board/fb-obmc/Kconfig
+@@ -141,3 +141,15 @@ config SYS_CONFIG_NAME
+   default "lideltapower"
+ endif
+ 
++if TARGET_LIYELLOWSUB
++config SYS_CPU
++  default "arm926ejs"
++config SYS_BOARD
++  default "ast-g4"
++config SYS_VENDOR
++  default "aspeed"
++config SYS_SOC
++  default "aspeed"
++config SYS_CONFIG_NAME
++  default "liyellowsub"
++endif
+diff --git a/board/linkedin/Kconfig b/board/linkedin/Kconfig
+index 68559a238f..486315d5c0 100644
+--- a/board/linkedin/Kconfig
++++ b/board/linkedin/Kconfig
+@@ -11,3 +11,15 @@ config SYS_CONFIG_NAME
+   default "lideltapower"
+ endif
+ 
++if TARGET_LIYELLOWSUB
++config SYS_CPU
++  default "arm926ejs"
++config SYS_BOARD
++  default "ast2400"
++config SYS_VENDOR
++  default "aspeed"
++config SYS_SOC
++  default "aspeed"
++config SYS_CONFIG_NAME
++  default "liyellowsub"
++endif
+diff --git a/board/linkedin/MAINTAINERS b/board/linkedin/MAINTAINERS
+index 027463f384..ed1201e6eb 100644
+--- a/board/linkedin/MAINTAINERS
++++ b/board/linkedin/MAINTAINERS
+@@ -4,4 +4,5 @@ S:     Maintained
+ F:     board/linkedin/
+ F:     include/configs/lideltapower.h
+ F:     configs/lideltapower_defconfig
+-
++F:     include/configs/liyellowsub.h
++F:     configs/liyellowsub_defconfig
+diff --git a/configs/liyellowsub_defconfig b/configs/liyellowsub_defconfig
+new file mode 100644
+index 0000000000..c7576c693e
+--- /dev/null
++++ b/configs/liyellowsub_defconfig
+@@ -0,0 +1,15 @@
++CONFIG_ARM=y
++CONFIG_TARGET_LIYELLOWSUB=y
++CONFIG_SYS_NS16550=y
++# CONFIG_CMD_IMLS is not set
++# CONFIG_CMD_FLASH is not set
++# CONFIG_CMD_FPGA is not set
++# CONFIG_CMD_SETEXPR is not set
++CONFIG_CMD_IMI=y
++CONFIG_OF_LIBFDT=y
++CONFIG_FIT=y
++CONFIG_FIT_VERBOSE=y
++CONFIG_FIT_SIGNATURE=y
++CONFIG_DM=y
++# CONFIG_OF_CONTROL=y
++# CONFIG_OF_EMBED=y
+diff --git a/configs/yellowsub_defconfig b/configs/yellowsub_defconfig
+new file mode 100644
+index 0000000000..6a38bc563a
+--- /dev/null
++++ b/configs/yellowsub_defconfig
+@@ -0,0 +1,20 @@
++CONFIG_PPC=y
++CONFIG_4xx=y
++CONFIG_TARGET_YELLOWSUB=y
++CONFIG_OF_BOARD_SETUP=y
++CONFIG_SYS_EXTRA_OPTIONS="YELLOWSUB"
++CONFIG_BOOTDELAY=5
++CONFIG_HUSH_PARSER=y
++CONFIG_CMD_ASKENV=y
++CONFIG_CMD_GREPENV=y
++CONFIG_LOOPW=y
++CONFIG_CMD_I2C=y
++CONFIG_CMD_USB=y
++CONFIG_CMD_DHCP=y
++CONFIG_CMD_MII=y
++CONFIG_CMD_PING=y
++CONFIG_CMD_CACHE=y
++CONFIG_CMD_EXT2=y
++CONFIG_CMD_FAT=y
++CONFIG_SYS_NS16550=y
++CONFIG_OF_LIBFDT=y
+diff --git a/include/configs/liyellowsub.h b/include/configs/liyellowsub.h
+new file mode 100644
+index 0000000000..0b8e3da705
+--- /dev/null
++++ b/include/configs/liyellowsub.h
+@@ -0,0 +1,48 @@
++#ifndef __LIYELLOWSUB_CONFIG_H
++#define __LIYELLOWSUB_CONFIG_H
++
++#define CONFIG_YELLOWSUB 1
++
++#define CONFIG_BOOTARGS		"debug console=ttyS3,115200n8 root=/dev/ram rw printk.time=1"
++#define CONFIG_UPDATE		"tftp 40800000 ast2400.scr; so 40800000'"
++#define CONFIG_BOOTFILE		"all.bin"
++
++/*
++ * Memory Configuration
++ * Deprecating with v2016.03: CONFIG_ASPEED_WRITE_DEFAULT_ENV
++ */
++#define PHYS_SDRAM_1_SIZE	0x10000000	/* 256 MB */
++
++/*
++ * Serial configuration
++ */
++#define CONFIG_SYS_NS16550_COM1		0x1e783000
++#define CONFIG_SYS_NS16550_COM2		0x1e784000
++#define CONFIG_SYS_NS16550_COM3		0x1e78e000
++#define	CONFIG_SYS_LOADS_BAUD_CHANGE
++#define CONFIG_CONS_INDEX	        3
++#define CONFIG_BAUDRATE			115200
++#define CONFIG_ASPEED_COM AST_UART3_BASE // COM3(UART5)
++
++/*
++ * UART configurtion
++ */
++#define CONFIG_ASPEED_UART1_ENABLE
++#define CONFIG_ASPEED_UART2_ENABLE
++#define CONFIG_ASPEED_UART3_ENABLE
++#define CONFIG_ASPEED_UART4_ENABLE
++
++/*
++ * NIC configuration
++ */
++#define CONFIG_MAC1_ENABLE
++#define CONFIG_MAC2_ENABLE
++#define CONFIG_MAC1_PHY_SETTING		2
++#define CONFIG_MAC2_PHY_SETTING		0
++#define CONFIG_ASPEED_MAC_NUMBER    2	
++#define CONFIG_ASPEED_MAC_CONFIG	2
++
++#include "linkedin_common.h"
++#include "ast2400_common.h"
++
++#endif	/* __LIYELLOWSUB_CONFIG_H */

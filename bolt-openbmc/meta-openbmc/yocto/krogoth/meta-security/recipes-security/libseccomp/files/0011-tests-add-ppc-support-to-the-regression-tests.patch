@@ -1,0 +1,64 @@
+From 1a68b28e8cc6680dc7a9aecd26e06112b4ff93bf Mon Sep 17 00:00:00 2001
+From: Bogdan Purcareata <bogdan.purcareata@freescale.com>
+Date: Wed, 11 Feb 2015 13:23:28 +0000
+Subject: [PATCH 11/11] tests: add ppc support to the regression tests
+
+Signed-off-by: Bogdan Purcareata <bogdan.purcareata@freescale.com>
+Signed-off-by: Paul Moore <pmoore@redhat.com>
+---
+ tests/26-sim-arch_all_be_basic.c  | 3 +++
+ tests/26-sim-arch_all_be_basic.py | 1 +
+ tests/regression                  | 4 ++--
+ 3 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/tests/26-sim-arch_all_be_basic.c b/tests/26-sim-arch_all_be_basic.c
+index 1a44525..91fcbea 100644
+--- a/tests/26-sim-arch_all_be_basic.c
++++ b/tests/26-sim-arch_all_be_basic.c
+@@ -55,6 +55,9 @@ int main(int argc, char *argv[])
+ 	rc = seccomp_arch_add(ctx, seccomp_arch_resolve_name("ppc64"));
+ 	if (rc != 0)
+ 		goto out;
++	rc = seccomp_arch_add(ctx, seccomp_arch_resolve_name("ppc"));
++	if (rc != 0)
++		goto out;
+ 
+ 	rc = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(read), 1,
+ 			      SCMP_A0(SCMP_CMP_EQ, STDIN_FILENO));
+diff --git a/tests/26-sim-arch_all_be_basic.py b/tests/26-sim-arch_all_be_basic.py
+index cba2dea..1537013 100755
+--- a/tests/26-sim-arch_all_be_basic.py
++++ b/tests/26-sim-arch_all_be_basic.py
+@@ -34,6 +34,7 @@ def test(args):
+     f.add_arch(Arch("mips64"))
+     f.add_arch(Arch("mips64n32"))
+     f.add_arch(Arch("ppc64"))
++    f.add_arch(Arch("ppc"))
+     f.add_rule(ALLOW, "read", Arg(0, EQ, sys.stdin.fileno()))
+     f.add_rule(ALLOW, "write", Arg(0, EQ, sys.stdout.fileno()))
+     f.add_rule(ALLOW, "write", Arg(0, EQ, sys.stderr.fileno()))
+diff --git a/tests/regression b/tests/regression
+index eeb6cfb..9f0c17e 100755
+--- a/tests/regression
++++ b/tests/regression
+@@ -28,7 +28,7 @@ GLBL_ARCH_LE_SUPPORT=" \
+ 	ppc64le"
+ GLBL_ARCH_BE_SUPPORT=" \
+ 	mips mips64 mips64n32 \
+-	ppc64"
++	ppc64 ppc"
+ 
+ GLBL_SYS_ARCH="../tools/scmp_arch_detect"
+ GLBL_SYS_RESOLVER="../tools/scmp_sys_resolver"
+@@ -673,7 +673,7 @@ function run_test_live() {
+ 
+ 	# setup the arch specific return values
+ 	case "$arch" in
+-	x86|x86_64|x32|arm|aarch64|ppc64|ppc64le)
++	x86|x86_64|x32|arm|aarch64|ppc64|ppc64le|ppc)
+ 		rc_kill=159
+ 		rc_allow=160
+ 		rc_trap=161
+-- 
+2.3.5
+

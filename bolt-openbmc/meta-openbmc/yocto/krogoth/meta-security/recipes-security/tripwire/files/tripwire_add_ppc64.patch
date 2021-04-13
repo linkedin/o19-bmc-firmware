@@ -1,0 +1,35 @@
+tripwire:
+
+Powerpc64 is not supported in the current tripwier release.
+
+ configure: error: /bin/sh ./config.sub powerpc64-poky-linux failed
+ | Configure failed. The contents of all config.log files follows to aid debugging
+
+Submitted upstream to  Tripwire devel mailing list
+
+http://sourceforge.net/p/tripwire/mailman/message/32776415/
+
+Signed-off-By: Armin Kuster <akuster808@gmail.com>
+
+Index: tripwire-2.4.2.2-src/config.sub
+===================================================================
+--- tripwire-2.4.2.2-src.orig/config.sub
++++ tripwire-2.4.2.2-src/config.sub
+@@ -233,7 +233,7 @@ case $basic_machine in
+ 		| alpha | alphaev[4-8] | alphaev56 | alphapca5[67] \
+ 		| alphaev6[78] \
+ 		| we32k | ns16k | clipper | i370 | sh | sh[34] \
+-		| powerpc | powerpcle \
++		| powerpc | powerpcle | powerpc64 \
+ 		| 1750a | dsp16xx | pdp10 | pdp11 \
+ 		| mips16 | mips64 | mipsel | mips64el \
+ 		| mips64orion | mips64orionel | mipstx39 | mipstx39el \
+@@ -280,7 +280,7 @@ case $basic_machine in
+ 	      | we32k-* | cydra-* | ns16k-* | pn-* | np1-* | xps100-* \
+ 	      | clipper-* | orion-* \
+ 	      | sparclite-* | pdp10-* | pdp11-* | sh-* | sh[34]-* | sh[34]eb-* \
+-	      | powerpc-* | powerpcle-* | sparc64-* | sparcv9-* | sparcv9b-* | sparc86x-* \
++	      | powerpc-* | powerpcle-* | powerpc64-* | sparc64-* | sparcv9-* | sparcv9b-* | sparc86x-* \
+ 	      | mips16-* | mips64-* | mipsel-* \
+ 	      | mips64el-* | mips64orion-* | mips64orionel-* \
+ 	      | mips64vr4100-* | mips64vr4100el-* | mips64vr4300-* | mips64vr4300el-* \

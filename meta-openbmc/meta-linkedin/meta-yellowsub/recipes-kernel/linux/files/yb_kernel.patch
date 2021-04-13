@@ -1,0 +1,169 @@
+diff --git a/arch/arm/configs/ast2400_defconfig b/arch/arm/configs/ast2400_defconfig
+index 94919f7f51e3..abe9f2f02508 100644
+--- a/arch/arm/configs/ast2400_defconfig
++++ b/arch/arm/configs/ast2400_defconfig
+@@ -1221,7 +1221,7 @@ CONFIG_HWMON=y
+ # CONFIG_SENSORS_LM63 is not set
+ # CONFIG_SENSORS_LM70 is not set
+ # CONFIG_SENSORS_LM73 is not set
+-# CONFIG_SENSORS_LM75 is not set
++CONFIG_SENSORS_LM75=y
+ # CONFIG_SENSORS_LM77 is not set
+ # CONFIG_SENSORS_LM78 is not set
+ # CONFIG_SENSORS_LM80 is not set
+diff --git a/arch/arm/mach-aspeed/Kconfig b/arch/arm/mach-aspeed/Kconfig
+index f37d9da0baa1..6d0239649e85 100644
+--- a/arch/arm/mach-aspeed/Kconfig
++++ b/arch/arm/mach-aspeed/Kconfig
+@@ -227,6 +227,12 @@ config YOSEMITE
+         select EGFX_IRQ
+         bool "Facebook Yosemite"
+ 
++config YELLOWSUB
++        select USB_ARCH_HAS_EHCI
++        select AST_UART_SDMA
++        select EGFX_IRQ
++        bool "Linkedin Yellowsub"
++
+ config FBPLATFORM1
+         bool "Facebook Platform1"
+ 
+diff --git a/arch/arm/mach-aspeed/ast.c b/arch/arm/mach-aspeed/ast.c
+index d69f30a443c8..d78cbea584c0 100644
+--- a/arch/arm/mach-aspeed/ast.c
++++ b/arch/arm/mach-aspeed/ast.c
+@@ -123,7 +123,7 @@ static const char * const ast_dt_match[] = {
+ 
+ void ast_restart(enum reboot_mode mode, const char *cmd)
+ {
+-#if defined(CONFIG_YOSEMITE) || defined(CONFIG_FBTP) || defined(CONFIG_FBTTN) || defined(CONFIG_LIGHTNING) ||  defined(CONFIG_FBY2) || defined(CONFIG_PWNEPTUNE) || defined(CONFIG_MINILAKETB)
++#if defined(CONFIG_YOSEMITE) || defined(CONFIG_FBTP) || defined(CONFIG_FBTTN) || defined(CONFIG_LIGHTNING) ||  defined(CONFIG_FBY2) || defined(CONFIG_PWNEPTUNE) || defined(CONFIG_MINILAKETB) || defined(CONFIG_YELLOWSUB)
+ 	ast_wdt_reset_soc();
+ #else
+ 	ast_wdt_reset_full();
+diff --git a/arch/arm/plat-aspeed/Makefile b/arch/arm/plat-aspeed/Makefile
+index 55d9a0d6e11a..c1d72d1e2043 100644
+--- a/arch/arm/plat-aspeed/Makefile
++++ b/arch/arm/plat-aspeed/Makefile
+@@ -87,6 +87,11 @@ ifeq ($(CONFIG_YOSEMITE), y)
+   PLATFB = 1
+ endif
+ 
++ifeq ($(CONFIG_YELLOWSUB), y)
++  obj-y += dev-uart.o  dev-i2c.o
++  PLATFB = 1
++endif
++
+ ifeq ($(CONFIG_PWNEPTUNE), y)
+   obj-y += dev-uart-fbtp.o dev-i2c.o
+   PLATFB = 1
+diff --git a/arch/arm/plat-aspeed/dev-eth.c b/arch/arm/plat-aspeed/dev-eth.c
+index 7e28d004a6f7..f9c934e98f11 100644
+--- a/arch/arm/plat-aspeed/dev-eth.c
++++ b/arch/arm/plat-aspeed/dev-eth.c
+@@ -45,7 +45,7 @@
+ 	defined(CONFIG_FBTTN) || defined(CONFIG_FBY2) || \
+ 	defined(CONFIG_YOSEMITE) || defined(CONFIG_MINIPACK) || \
+ 	defined(CONFIG_MINILAKETB) || defined(CONFIG_YAMP) || \
+-	defined(CONFIG_GALAXY100)
++	defined(CONFIG_GALAXY100) || defined(CONFIG_YELLOWSUB)
+ #define DRVNAME "ftgmac100"
+ #else
+ #define DRVNAME "ast_gmac"
+diff --git a/arch/arm/plat-aspeed/dev-i2c.c b/arch/arm/plat-aspeed/dev-i2c.c
+index 36892b43f1fd..385ea29171c5 100644
+--- a/arch/arm/plat-aspeed/dev-i2c.c
++++ b/arch/arm/plat-aspeed/dev-i2c.c
+@@ -879,7 +879,7 @@ static struct i2c_board_info ast_i2c_board_info_13[] __initdata = {
+ };
+ 
+ //end for FBTTN
+-#elif defined(CONFIG_YOSEMITE)
++#elif defined(CONFIG_YOSEMITE) || defined(CONFIG_YELLOWSUB)
+ 
+ //Under I2C Dev 0
+ static struct i2c_board_info ast_i2c_board_info_0[] __initdata = {
+@@ -1251,7 +1251,7 @@ void __init ast_add_device_i2c(void)
+ 	i2c_register_board_info(13, ast_i2c_board_info_13,
+ 			ARRAY_SIZE(ast_i2c_board_info_13));
+ }
+-#elif defined(CONFIG_YOSEMITE)
++#elif defined(CONFIG_YOSEMITE) || defined(CONFIG_YELLOWSUB)
+ void __init ast_add_device_i2c(void)
+ {
+ 	/* I2C Multi-Pin */
+diff --git a/arch/arm/plat-aspeed/dev-uart.c b/arch/arm/plat-aspeed/dev-uart.c
+index 78123f784287..0c34d62d0435 100644
+--- a/arch/arm/plat-aspeed/dev-uart.c
++++ b/arch/arm/plat-aspeed/dev-uart.c
+@@ -195,7 +195,7 @@ static struct plat_serial8250_port ast_uart_data[] = {
+ /* Without this, tty offset might change for others */
+ #if defined(CONFIG_YOSEMITE) || defined(CONFIG_FBTP) ||  defined(CONFIG_FBY2) || defined(CONFIG_PWNEPTUNE) || \
+     defined(CONFIG_MINIPACK) || defined(CONFIG_MINILAKETB) || \
+-    defined(CONFIG_YAMP)
++    defined(CONFIG_YAMP) || defined(CONFIG_YELLOWSUB)
+ 	{
+ 		.mapbase	= AST_UART2_BASE,
+ 		.irq		= IRQ_UART2,
+@@ -372,7 +372,7 @@ struct platform_device ast_uart_device = {
+ void __init ast_add_device_uart(void)
+ {
+ #if defined(CONFIG_ARCH_AST1010)
+-#elif defined(CONFIG_YOSEMITE)
++#elif defined(CONFIG_YOSEMITE) || defined(CONFIG_YELLOWSUB)
+ 	ast_scu_multi_func_uart(1);
+ 	ast_scu_multi_func_uart(2);
+ 	ast_scu_multi_func_uart(3);
+diff --git a/drivers/i2c/busses/i2c-ast.c b/drivers/i2c/busses/i2c-ast.c
+index e4f1689a3e56..0b54d69cbb3e 100644
+--- a/drivers/i2c/busses/i2c-ast.c
++++ b/drivers/i2c/busses/i2c-ast.c
+@@ -58,7 +58,7 @@
+ #define AST_LOCKUP_DETECTED (0x1 << 15)
+ 
+ // Enable SCL/SDA pull LOW detection for Yosemite platform
+-#ifdef CONFIG_YOSEMITE || CONFIG_FBY2 || CONFIG_MINILAKETB
++#ifdef CONFIG_YOSEMITE || CONFIG_FBY2 || CONFIG_MINILAKETB || CONFIG_YELLOWSUB
+ #define AST_I2C_LOW_TIMEOUT 0x07
+ #else
+ #define AST_I2C_LOW_TIMEOUT 0x00
+@@ -155,7 +155,7 @@ static u32 select_i2c_clock(struct ast_i2c_dev *i2c_dev)
+   }
+ #endif
+ 
+-#ifdef CONFIG_YOSEMITE
++#ifdef CONFIG_YOSEMITE || CONFIG_YELLOWSUB
+   if (i2c_dev->ast_i2c_data->bus_clk == 1000000) {
+     data = 0x77744302;
+     return data;
+@@ -254,7 +254,7 @@ static void ast_i2c_dev_init(struct ast_i2c_dev *i2c_dev)
+ 
+ 	/* Set AC Timing */
+ #if defined(CONFIG_ARCH_AST2400)
+-#ifndef CONFIG_YOSEMITE
++#if !defined(CONFIG_YOSEMITE) && !defined(CONFIG_YELLOWSUB)
+ 	if(i2c_dev->ast_i2c_data->bus_clk/1000 > 400) {
+ 		printk("high speed mode enable clk [%dkhz]\n",i2c_dev->ast_i2c_data->bus_clk/1000);
+ 		ast_i2c_write(i2c_dev, ast_i2c_read(i2c_dev, I2C_FUN_CTRL_REG) |
+diff --git a/drivers/net/ethernet/faraday/ftgmac100.c b/drivers/net/ethernet/faraday/ftgmac100.c
+index 687b0316c1b4..69120b0fab8f 100644
+--- a/drivers/net/ethernet/faraday/ftgmac100.c
++++ b/drivers/net/ethernet/faraday/ftgmac100.c
+@@ -2117,7 +2117,7 @@ void ncsi_start(struct net_device *dev) {
+         //TODO: This is an issue in  Get_Version_ID that always returns
+         //mezz_type to be -1, so it only calls Get_MAC_Address_bcm.
+         //It may need to work with Mlx to find a solution.
+-#if defined(CONFIG_FBY2) || defined(CONFIG_YOSEMITE)  || defined(CONFIG_MINILAKETB)    //For multi-host NIC initialization
++#if defined(CONFIG_FBY2) || defined(CONFIG_YOSEMITE)  || defined(CONFIG_MINILAKETB) || defined(CONFIG_YELLOWSUB)    //For multi-host NIC initialization
+         // Try Mlx first
+         Get_MAC_Address_mlx(dev);
+         Set_MAC_Affinity_mlx(dev);
+@@ -3248,7 +3248,7 @@ static int ftgmac100_open(struct net_device *netdev)
+ 	ftgmac100_start_hw(priv, 100);
+ #elif defined(CONFIG_FBTTN)
+ 	ftgmac100_start_hw(priv, 100);
+-#elif defined(CONFIG_FBY2)  || defined(CONFIG_YOSEMITE)
++#elif defined(CONFIG_FBY2)  || defined(CONFIG_YOSEMITE) || defined(CONFIG_YELLOWSUB)
+ 	ftgmac100_start_hw(priv, 100);
+ #else
+ 	ftgmac100_start_hw(priv, 10);

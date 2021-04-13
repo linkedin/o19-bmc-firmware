@@ -1,0 +1,42 @@
+From 043b6bdc97b6cfd08a438c6b065815c0130d3a8e Mon Sep 17 00:00:00 2001
+From: Adrian Brathwaite <adrian.brathwaite@flex.com>
+Date: Wed, 21 Mar 2018 13:30:42 -0700
+Subject: [PATCH] Bolt iso buffer enabled
+
+---
+ .../board-utils.sh              | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/board-utils.sh b/board-utils.sh
+index a999a9c..9a8660a 100644
+--- a/board-utils.sh
++++ b/board-utils.sh
+@@ -7,12 +7,14 @@ PWR_USRV_BTN_SYSFS="${SYSCPLD_SYSFS_DIR}/pwr_usrv_btn_en"
+ SLOTID_SYSFS="${SYSCPLD_SYSFS_DIR}/slotid"
+ 
+ wedge_iso_buf_enable() {
+-    # TODO, no isolation buffer
++    echo "Enabling the COMe isolation buffer"
++    i2cset -f -y 12 0x31 0x28 0xff
+     return 0
+ }
+ 
+ wedge_iso_buf_disable() {
+-    # TODO, no isolation buffer
++    echo "Disabling the COMe isolation buffer"
++    i2cset -f -y 12 0x31 0x28 0x00
+     return 0
+ }
+ 
+@@ -44,7 +46,7 @@ wedge_is_us_on() {
+ }
+ 
+ wedge_board_type() {
+-    echo 'WEDGE100'
++    echo 'Bolt'
+ }
+ 
+ wedge_slot_id() {
+-- 
+2.5.0
+

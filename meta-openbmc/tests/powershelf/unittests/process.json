@@ -1,0 +1,6 @@
+[
+  "/usr/local/bin/healthmon",
+  "/var/run/dhclient.eth0.pid",
+  "/var/run/dhclient6.eth0.pid",
+  "/usr/local/bin/rest.py"
+]

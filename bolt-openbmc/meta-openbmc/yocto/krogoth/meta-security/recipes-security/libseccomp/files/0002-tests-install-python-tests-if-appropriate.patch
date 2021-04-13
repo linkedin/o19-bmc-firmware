@@ -1,0 +1,61 @@
+From 49dd92b85ca1797f2d289f48d3c1cdaec678334b Mon Sep 17 00:00:00 2001
+From: Joe MacDonald <joe@deserted.net>
+Date: Mon, 28 Oct 2013 15:40:15 -0400
+Subject: [PATCH 2/3] tests: install python tests if appropriate
+
+Install the python tests in addition to the C tests if python bindings are
+being built.  The regression script can, and needs to, have the
+modification of the PYTHONPATH removed since it's unlikely in this
+scenario that the original source tree will be around at all anymore.
+This shouldn't be a problem since the library should be installed to the
+default PYTHONPATH anyway.
+
+Upstream-Status: Submitted [http://www.mail-archive.com/libseccomp-discuss@lists.sourceforge.net/msg00470.html]
+
+Signed-off-by: Joe MacDonald <joe@deserted.net>
+---
+ macros.mk      |    3 ++-
+ tests/Makefile |    6 +++++-
+ 2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/macros.mk b/macros.mk
+index e7c196d..13e7ed3 100644
+--- a/macros.mk
++++ b/macros.mk
+@@ -221,7 +221,8 @@ INSTALL_REGRESSION_TEST_MACRO += \
+ 		$(INSTALL) -o $(INSTALL_OWNER) -g $(INSTALL_GROUP) \
+ 			-d "$(INSTALL_TEST_DIR)"; \
+ 		$(INSTALL) -o $(INSTALL_OWNER) -g $(INSTALL_GROUP) -m 0755 \
+-			regression "$(INSTALL_TEST_DIR)";
++			regression "$(INSTALL_TEST_DIR)"; \
++		$(SED) -i "/\/..\/src\/python\/build\/lib\./d" "$(INSTALL_TEST_DIR)/regression";
+ 
+ ifeq ($(V),0)
+ 	INSTALL_MAN1_MACRO = \
+diff --git a/tests/Makefile b/tests/Makefile
+index 135551c..309a570 100644
+--- a/tests/Makefile
++++ b/tests/Makefile
+@@ -78,6 +78,10 @@ all: $(TESTS) $(OBJS)
+ 
+ -include $(DEPS_TESTS) $(DEPS_OBJS)
+ 
++ifeq ($(CONF_BINDINGS_PYTHON), 1)
++	PY_TESTS = $(TESTS:%=%.py)
++endif
++
+ $(DEPS_TESTS):
+ 	$(MAKEDEP_EXEC)
+ 	$(ADDDEP) $@ ../src/libseccomp.a
+@@ -92,7 +96,7 @@ $(TEST_PRIVATE): 00-test.c $(OBJS) ../src/libseccomp.a
+ check: $(TESTS)
+ 	./regression
+ 
+-install-tests: $(TESTS) $(TESTS:%=%.tests)
++install-tests: $(TESTS) $(TESTS:%=%.tests) $(PY_TESTS)
+ 	$(INSTALL_TEST_MACRO)
+ 	$(INSTALL_REGRESSION_TEST_MACRO)
+ 
+-- 
+1.7.10.4
+

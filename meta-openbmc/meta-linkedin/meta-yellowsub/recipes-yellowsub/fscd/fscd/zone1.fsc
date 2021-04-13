@@ -1,0 +1,25 @@
+max([
+  linear_soc(slot1:soc_temp),
+  linear_soc(slot2:soc_temp),
+  linear_soc(slot3:soc_temp),
+  linear_soc(slot4:soc_temp),
+  linear_dimm(
+   max([
+    slot1:soc_dimma0_temp,
+    slot1:soc_dimma1_temp,
+    slot1:soc_dimmb0_temp,
+    slot1:soc_dimmb1_temp,
+    slot2:soc_dimma0_temp,
+    slot2:soc_dimma1_temp,
+    slot2:soc_dimmb0_temp,
+    slot2:soc_dimmb1_temp,
+    slot3:soc_dimma0_temp,
+    slot3:soc_dimma1_temp,
+    slot3:soc_dimmb0_temp,
+    slot3:soc_dimmb1_temp,
+    slot4:soc_dimma0_temp,
+    slot4:soc_dimma1_temp,
+    slot4:soc_dimmb0_temp,
+    slot4:soc_dimmb1_temp])),
+  linear_mezz(nic:mezz_sensor_temp)
+])

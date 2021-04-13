@@ -1,0 +1,81 @@
+From 77f4cdf90a5f25b8ace51e00fe1379665099ed75 Mon Sep 17 00:00:00 2001
+From: Adrian Brathwaite <adrian.brathwaite@flex.com>
+Date: Tue, 13 Feb 2018 11:48:30 -0800
+Subject: [PATCH] Modify weutil.c for LI
+
+---
+ .../weutil.c              | 58 +++++++++++-----------
+ 1 file changed, 28 insertions(+), 30 deletions(-)
+
+diff --git a/weutil.c b/weutil.c
+index c1838c5..12cc198 100644
+--- a/weutil.c
++++ b/weutil.c
+@@ -45,36 +45,34 @@ int main(int argc, const char *argv[])
+     return -1;
+   }
+ 
+-  printf("Wedge EEPROM %s:\n", fn ? fn : "");
+-  printf("Version: %d\n", eeprom.fbw_version);
+-  printf("Product Name: %s\n", eeprom.fbw_product_name);
+-  printf("Product Part Number: %s\n", eeprom.fbw_product_number);
+-  printf("System Assembly Part Number: %s\n", eeprom.fbw_assembly_number);
+-  printf("Facebook PCBA Part Number: %s\n", eeprom.fbw_facebook_pcba_number);
+-  printf("Facebook PCB Part Number: %s\n", eeprom.fbw_facebook_pcb_number);
+-  printf("ODM PCBA Part Number: %s\n", eeprom.fbw_odm_pcba_number);
+-  printf("ODM PCBA Serial Number: %s\n", eeprom.fbw_odm_pcba_serial);
+-  printf("Product Production State: %d\n", eeprom.fbw_production_state);
+-  printf("Product Version: %d\n", eeprom.fbw_product_version);
+-  printf("Product Sub-Version: %d\n", eeprom.fbw_product_subversion);
+-  printf("Product Serial Number: %s\n", eeprom.fbw_product_serial);
+-  printf("Product Asset Tag: %s\n", eeprom.fbw_product_asset);
+-  printf("System Manufacturer: %s\n", eeprom.fbw_system_manufacturer);
+-  printf("System Manufacturing Date: %s\n",
+-         eeprom.fbw_system_manufacturing_date);
+-  printf("PCB Manufacturer: %s\n", eeprom.fbw_pcb_manufacturer);
+-  printf("Assembled At: %s\n", eeprom.fbw_assembled);
+-  printf("Local MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
+-         eeprom.fbw_local_mac[0], eeprom.fbw_local_mac[1],
+-         eeprom.fbw_local_mac[2], eeprom.fbw_local_mac[3],
+-         eeprom.fbw_local_mac[4], eeprom.fbw_local_mac[5]);
+-  printf("Extended MAC Base: %02X:%02X:%02X:%02X:%02X:%02X\n",
+-         eeprom.fbw_mac_base[0], eeprom.fbw_mac_base[1],
+-         eeprom.fbw_mac_base[2], eeprom.fbw_mac_base[3],
+-         eeprom.fbw_mac_base[4], eeprom.fbw_mac_base[5]);
+-  printf("Extended MAC Address Size: %d\n", eeprom.fbw_mac_size);
+-  printf("Location on Fabric: %s\n", eeprom.fbw_location);
+-  printf("CRC8: 0x%x\n", eeprom.fbw_crc8);
++  printf("%-28s : %d\n", "Bolt ID EEPROM", eeprom.fbw_version);
++  printf("%-28s : %s\n", "Product Name", eeprom.fbw_product_name);
++  printf("%-28s : %s\n", "Product Part Number", eeprom.fbw_product_number);
++  printf("%-28s : %s\n", "System Assembly Part Number", eeprom.fbw_assembly_number);
++  printf("%-28s : %s\n", "LinkedIn PCBA Part Number", eeprom.fbw_facebook_pcba_number);
++  printf("%-28s : %s\n", "LinkedIn PCB Part Number", eeprom.fbw_facebook_pcb_number);
++  printf("%-28s : %s\n", "Flex PCBA Part Number", eeprom.fbw_odm_pcba_number);
++  printf("%-28s : %s\n", "Flex PCBA Serial Number", eeprom.fbw_odm_pcba_serial);
++  printf("%-28s : %d\n", "Production State", eeprom.fbw_production_state);
++  printf("%-28s : %d\n", "Product Version", eeprom.fbw_product_version);
++  printf("%-28s : %d\n", "Product Sub Version", eeprom.fbw_product_subversion);
++  printf("%-28s : %s\n", "System Serial Number", eeprom.fbw_product_serial);
++  printf("%-28s : %s\n", "Product Asset Tag", eeprom.fbw_product_asset);
++  printf("%-28s : %s\n", "System Manufacturer", eeprom.fbw_system_manufacturer);
++  printf("%-28s : %s\n", "System Manufacturing Date", eeprom.fbw_system_manufacturing_date);
++  printf("%-28s : %s\n", "PCB Manufacturer", eeprom.fbw_pcb_manufacturer);
++  printf("%-28s : %s\n", "Assembled At", eeprom.fbw_assembled);
++  printf("%-28s : %02X:%02X:%02X:%02X:%02X:%02X\n", "BMC MAC",
++           eeprom.fbw_local_mac[0], eeprom.fbw_local_mac[1],
++           eeprom.fbw_local_mac[2], eeprom.fbw_local_mac[3],
++           eeprom.fbw_local_mac[4], eeprom.fbw_local_mac[5]);
++  printf("%-28s : %02X:%02X:%02X:%02X:%02X:%02X\n", "Extended MAC",
++           eeprom.fbw_mac_base[0], eeprom.fbw_mac_base[1],
++           eeprom.fbw_mac_base[2], eeprom.fbw_mac_base[3],
++           eeprom.fbw_mac_base[4], eeprom.fbw_mac_base[5]);
++  printf("%-28s : %d\n", "Extended MAC size", eeprom.fbw_mac_size);
++  printf("%-28s : %s\n", "Reserved", eeprom.fbw_location);
++  printf("%-28s : %x\n", "CRC8", eeprom.fbw_crc8);
+ 
+   return 0;
+ }
+-- 
+2.5.0
+

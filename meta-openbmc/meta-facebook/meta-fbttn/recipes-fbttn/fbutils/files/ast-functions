@@ -1,0 +1,266 @@
+# Copyright 2014-present Facebook. All Rights Reserved.
+DEVMEM=/sbin/devmem
+AST_POR_FLAG=/tmp/ast_por
+
+devmem_set_bit() {
+    local addr
+    local val
+    addr=$1
+    val=$($DEVMEM $addr)
+    val=$((val | (0x1 << $2)))
+    $DEVMEM $addr 32 $val
+}
+
+devmem_clear_bit() {
+    local addr
+    local val
+    addr=$1
+    val=$($DEVMEM $addr)
+    val=$((val & ~(0x1 << $2)))
+    $DEVMEM $addr 32 $val
+}
+
+scu_addr() {
+    echo $((0x1E6E2000 + 0x$1))
+}
+
+#LPC Controller, Base Address = 0x1E78_9000
+lpc_addr() {
+    echo $((0x1E789000 + 0x$1))
+}
+
+#GPIO Controller, Base Address = 0x1E78_0000
+gpio_addr() {
+    echo $((0x1E780000 + 0x$1))
+}
+
+GPIODIR="/sys/class/gpio"
+GPIOEXPORT="$GPIODIR/export"
+
+gpio_dir() {
+    echo "$GPIODIR/gpio$1"
+}
+
+gpio_name2value() {
+    local first remaining base val
+    remaining=$1
+    val=0
+    while [ -n "$remaining" ]; do
+        first=${remaining:0:1}
+        case "$first" in
+            [[:lower:]])
+                base=$(printf "%d" "'$first'")
+                base=$((base - 96))
+                val=$((val * 26 + base))
+                ;;
+            [[:upper:]])
+                base=$(printf "%d" "'$first'")
+                base=$((base - 64))
+                val=$((val * 26 + base))
+                ;;
+            *)
+                if [ $val -gt 0 ]; then
+                    val=$((val-1))
+                fi
+                val=$((val * 8 + $remaining))
+                break
+                ;;
+        esac
+        remaining=${remaining:1}
+    done
+    echo "$val"
+}
+
+gpio_export() {
+    local gpio
+    gpio=$(gpio_name2value $1)
+    dir=$(gpio_dir $gpio)
+    if [ ! -d ${dir} ]; then
+        echo $gpio > $GPIOEXPORT
+    fi
+}
+
+gpio_export_out() {
+    local gpio
+    gpio=$(gpio_name2value $1)
+    dir=$(gpio_dir $gpio)
+    if [ ! -d ${dir} ]; then
+        echo $gpio > $GPIOEXPORT
+        echo out > ${dir}/direction
+    fi
+}
+
+pca9555_gpio_export() {
+    local gpio
+    gpio=$1
+    dir=$(gpio_dir $gpio)
+    if [ ! -d ${dir} ]; then
+        echo $gpio > $GPIOEXPORT
+    fi
+}
+
+gpio_set() {
+    local gpio
+    local val
+    gpio=$(gpio_name2value $1)
+    val=$2
+    dir=$(gpio_dir $gpio)
+    if [ ! -d ${dir} ]; then
+        echo $gpio > $GPIOEXPORT
+    fi
+    
+    if [ $val == 1 ]; then
+    echo high > ${dir}/direction
+    else 
+    echo low > ${dir}/direction
+    fi
+}
+
+gpio_get() {
+    local gpio
+    local val
+    gpio=$(gpio_name2value $1)
+    dir=$(gpio_dir $gpio)
+    if [ ! -d ${dir} ]; then
+        echo $gpio > $GPIOEXPORT
+    fi
+    echo in > ${dir}/direction
+    cat ${dir}/value
+}
+
+# Store and Clear Power On Reset flag (SCU3C[0])
+store_clear_por()
+{
+  local val
+
+  if [ -f $AST_POR_FLAG ]; then
+    return
+  fi
+
+  # Read the Power On Reset flag SCU3C[0] to determine if this boot is AC on or not
+  val=$(devmem 0x1e6e203c 2>/dev/null)
+  if [ "$((val & 0x1))" == "1" ]; then
+      # Power ON Reset
+      echo 1 > $AST_POR_FLAG
+  else
+      echo 0 > $AST_POR_FLAG
+  fi
+
+  # Clear Power On Reset bit
+  devmem 0x1e6e203c 32 $((val & 0xfffffffe)) 2>/dev/null
+}
+
+# Check to see if BMC power-on-reset
+is_bmc_por() {
+  store_clear_por
+  /bin/cat $AST_POR_FLAG
+}
+
+# Check to see if server is present in given slot or not
+is_server_prsnt() {
+  prsnt=`cat /sys/devices/platform/ast-i2c.5/i2c-5/5-0024/gpio/gpio472/value`
+  if [ $prsnt == "0" ]; then
+    # Server is prsent
+    echo 1
+  else                                       
+    echo 0
+  fi
+}
+
+is_scc_prsnt() {
+  local scc_port
+  scc_port=$1
+  prsnt=`cat /sys/devices/platform/ast-i2c.5/i2c-5/5-0024/gpio/gpio$scc_port/value`
+  if [ $prsnt == "0" ]; then
+    # SCC is prsent
+    echo 1
+  else
+    echo 0
+  fi
+}
+
+is_fan_prsnt() {
+  local fan_port
+  fan_port=$1
+  prsnt=`cat /sys/devices/platform/ast-i2c.5/i2c-5/5-0024/gpio/gpio$fan_port/value`
+  if [ $prsnt == "0" ]; then
+    # Fan is prsent
+    echo 1
+  else
+    echo 0
+  fi
+}
+
+fbttn_is_server_on() {
+    local curr_pwr_cpu
+    curr_pwr_cpu=$(python -c 'import sys; sys.path.append("/usr/local/fbpackages/utils"); import power_util; print power_util.get_pwr_cpu()')
+    if [ $curr_pwr_cpu == "1" ]; then
+        echo 1
+    else
+        echo 0
+    fi
+}
+
+gpio_get_val() {
+    local gpio
+    local val
+    gpio=$(gpio_name2value $1)
+    dir=$(gpio_dir $gpio)
+    if [ ! -d ${dir} ]; then
+        echo $gpio > $GPIOEXPORT
+    fi
+    cat ${dir}/value
+}
+
+gpio_tolerance_fun() {
+    local gpio
+    offset=0
+    gpio=$(gpio_name2value $1)
+    offset=$((${gpio}/32))
+    case "${offset}" in
+    "0" ) 
+    offset=0x1e78001c
+    ;;
+    "1" ) 
+    offset=0x1e78003c
+    ;;
+    "2" ) 
+    offset=0x1e7800ac
+    ;;
+    "3" ) 
+    offset=0x1e7800fc
+    ;;
+    "4" ) 
+    offset=0x1e78012c
+    ;;
+    "5" ) 
+    offset=0x1e78015c
+    ;;
+    "6" ) 
+    offset=0x1e78018c
+    ;;
+    "7" ) 
+    offset=0x1e7801bc
+    ;;
+    esac
+    set_bit=$((${gpio}%32))
+    devmem_set_bit $offset $set_bit
+    def_val=$(gpio_get_val $1)
+    if [ $def_val == 1 ]; then
+    gpio_set $1 1
+    else
+    gpio_set $1 0
+    fi
+}
+
+is_bic_ready() {
+  local ready
+  ready=$(gpio_get G7)
+  
+  if [ $ready == "0" ]; then
+    echo 1
+  else
+    echo 0
+  fi
+}
+

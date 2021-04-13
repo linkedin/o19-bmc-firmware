@@ -1,0 +1,38 @@
+{
+  "tmp421": {
+    "bus": "1",
+    "address": "0x1f"
+  },
+  "pwr1014a": {
+    "bus": "2",
+    "address": "0x3a"
+  },
+  "24c64": {
+    "bus": "6",
+    "address": "0x51"
+  },
+  "pca954x": {
+    "bus": "10",
+    "address": "0x70"
+  },
+  "pca954x": {
+    "bus": "10",
+    "address": "0x71"
+  },
+  "pca954x": {
+    "bus": "10",
+    "address": "0x72"
+  },
+  "pca954x": {
+    "bus": "10",
+    "address": "0x73"
+  },
+  "adm1275": {
+    "bus": "11",
+    "address": "0x10"
+  },
+  "syscpld": {
+    "bus": "12",
+    "address": "0x31"
+  }
+}

@@ -1,0 +1,328 @@
+/*
+ * Copyright 2017-present Flextronics. All Rights Reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ * Program the Bolt manufacturing EEPROM
+ *
+ * Author: Adrian Brathwaite (adrian.brathwaite@flextronics.com)
+ */
+
+#include <facebook/flex_eeprom.h>
+
+#include <assert.h>
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+#include <syslog.h>
+#include <stdlib.h>
+#include <arpa/inet.h>
+
+static uint8_t flx_crc8(const uint8_t *buf, int len)
+{
+  uint8_t crc = 0;
+  uint8_t tmp;
+
+  while (len--) {
+    uint8_t extract = *buf++;
+    for (tmp = 8; tmp; tmp--) {
+      uint8_t sum = (crc ^ extract) & 0x01;
+      crc >>= 1;
+      if (sum) {
+        crc ^= 0x8c;
+      }
+      extract >>= 1;
+    }
+  }
+  return crc;
+}
+
+
+/* describe the actual eeprom content (minus the 4-byte magic number header) */
+/* wedge_eeprom_parse() expects this field ordering and sizing */
+struct wedge_eeprom_gn {
+  /* version number of the eeprom. Must be the first element */
+  uint16_t fbw_version;
+
+  /* Product Name */
+  char fbw_product_name[FBW_EEPROM_F_PRODUCT_NAME];
+
+  /* Top Level 20 - Product Part Number: XX-XXXXXX */
+  char fbw_product_number[FBW_EEPROM_F_PRODUCT_NUMBER];
+
+  /* System Assembly Part Number XXX-XXXXXX-XX */
+  char fbw_assembly_number[FBW_EEPROM_F_ASSEMBLY_NUMBER];
+
+  /* Bolt PCBA Part Number: XXX-XXXXXXX-XX */
+  char fbw_facebook_pcba_number[FBW_EEPROM_F_FACEBOOK_PCBA_NUMBER];
+
+  /* Bolt PCB Part Number: XXX-XXXXXXX-XX */
+  char fbw_facebook_pcb_number[FBW_EEPROM_F_FACEBOOK_PCB_NUMBER];
+
+  /* ODM PCB Part Number: XXXXXXXXXXXX */
+  char fbw_odm_pcba_number[FBW_EEPROM_F_ODM_PCBA_NUMBER];
+
+  /* ODM PCB Serial Number: XXXXXXXXXXXX */
+  char fbw_odm_pcba_serial[FBW_EEPROM_F_ODM_PCBA_SERIAL];
+
+  /* Product Production State */
+  uint16_t fbw_production_state;
+
+  /* Product Version */
+  uint8_t fbw_product_version;
+
+  /* Product Sub Version */
+  uint8_t fbw_product_subversion;
+
+  /* Product Serial Number: XXXXXXXX */
+  char fbw_product_serial[FBW_EEPROM_F_PRODUCT_SERIAL];
+
+  /* Product Asset Tag: XXXXXXXX */
+  char fbw_product_asset[FBW_EEPROM_F_PRODUCT_ASSET];
+
+  /* System Manufacturer: XXXXXXXX */
+  char fbw_system_manufacturer[FBW_EEPROM_F_SYSTEM_MANUFACTURER];
+
+  /* System Manufacturing Date:  MM/DD/YYYY */
+  char fbw_system_manufacturing_date[FBW_EEPROM_F_SYSTEM_MANU_DATE];
+
+  /* PCB Manufacturer: XXXXXXXXX */
+  char fbw_pcb_manufacturer[FBW_EEPROM_F_PCB_MANUFACTURER];
+
+  /* Assembled At: XXXXXXXX */
+  char fbw_assembled[FBW_EEPROM_F_ASSEMBLED];
+
+  /* Local MAC Address */
+  char fbw_local_mac[FBW_EEPROM_F_LOCAL_MAC];
+
+  /* Extended MAC Address */
+  char fbw_mac_base[FBW_EEPROM_F_EXT_MAC_BASE];
+
+  /* Extended MAC Address Size */
+  uint16_t fbw_mac_size;
+
+  /* Location on Fabric: "LEFT"/"RIGHT", "WEDGE", "LC" */
+  char fbw_location[FBW_EEPROM_F_LOCATION];
+
+  /* CRC8 */
+  uint8_t fbw_crc8;
+};
+
+FILE *fin, *ftxt;
+
+void copy_data (char *src, char *dst, int bytes)
+{
+  if (*src == '\0')
+    return;
+
+  memcpy (dst, src, bytes);
+}
+
+void read_data (char *str, int size)
+{
+  char line[128], *eol;
+  memset(line, '\0', size);
+  fgets(line, sizeof line, ftxt);
+  if ((eol = strchr(line, '\n')))
+    *eol = '\0';
+  memcpy(str, line, size);
+}
+
+static int fbw_fill_struct (struct wedge_eeprom_gn *eeprom)
+{
+  if (ftxt) {
+    char buffer[8];
+    char buf2[16];
+
+    read_data (buf2, sizeof buf2);
+    eeprom->fbw_version = atoi(buf2);
+    syslog(LOG_NOTICE, "EEP ver from file  : %d", eeprom->fbw_version);
+    eeprom->fbw_version = htons(eeprom->fbw_version);
+    syslog(LOG_NOTICE, "EEP ver htons      : %d", eeprom->fbw_version);
+
+    read_data (eeprom->fbw_product_name, sizeof eeprom->fbw_product_name);
+    read_data (eeprom->fbw_product_number, sizeof eeprom->fbw_product_number);
+    read_data (eeprom->fbw_assembly_number, sizeof eeprom->fbw_assembly_number);
+    read_data (eeprom->fbw_facebook_pcba_number, sizeof eeprom->fbw_facebook_pcba_number);
+    read_data (eeprom->fbw_facebook_pcb_number, sizeof eeprom->fbw_facebook_pcb_number);
+    read_data (eeprom->fbw_odm_pcba_number, sizeof eeprom->fbw_odm_pcba_number);
+    read_data (eeprom->fbw_odm_pcba_serial, sizeof eeprom->fbw_odm_pcba_serial);
+
+    read_data (buf2, sizeof buf2);
+    eeprom->fbw_production_state = atoi(buf2);
+    syslog(LOG_NOTICE, "Prod State from file  : %d",
+           eeprom->fbw_production_state);
+    eeprom->fbw_production_state = htons(eeprom->fbw_production_state);
+
+    read_data (buffer, sizeof buffer);
+    eeprom->fbw_product_version = (uint8_t)atoi(buffer);
+
+    read_data (buffer, sizeof buffer);
+    eeprom->fbw_product_subversion = (uint8_t)atoi(buffer);
+
+    read_data (eeprom->fbw_product_serial, sizeof eeprom->fbw_product_serial);
+    read_data (eeprom->fbw_product_asset, sizeof eeprom->fbw_product_asset);
+    read_data (eeprom->fbw_system_manufacturer, sizeof eeprom->fbw_system_manufacturer);
+    read_data (eeprom->fbw_system_manufacturing_date, sizeof eeprom->fbw_system_manufacturing_date);
+    syslog(LOG_NOTICE, "Mfg Date from file    : %s", eeprom->fbw_system_manufacturing_date);
+
+    read_data (eeprom->fbw_pcb_manufacturer, sizeof eeprom->fbw_pcb_manufacturer);
+    read_data (eeprom->fbw_assembled, sizeof eeprom->fbw_assembled);
+    read_data (eeprom->fbw_local_mac, sizeof eeprom->fbw_local_mac);
+    read_data (eeprom->fbw_mac_base, sizeof eeprom->fbw_mac_base);
+
+    read_data (buf2, sizeof buf2);
+    eeprom->fbw_mac_size = atoi(buf2);
+    syslog(LOG_NOTICE, "MAC sz from file      : %d", eeprom->fbw_mac_size);
+    eeprom->fbw_mac_size = htons(eeprom->fbw_mac_size);
+
+    read_data (eeprom->fbw_location, sizeof eeprom->fbw_location);
+    syslog(LOG_NOTICE, "Location from file    : %s", eeprom->fbw_location);
+    read_data (buffer, sizeof buffer);
+    eeprom->fbw_crc8 = (uint8_t)atoi(buffer);
+
+  } else { /* No arg - prompt for board unique parameters */
+    struct wedge_eeprom_gn temp_eeprom;
+
+    printf("Modify Bolt ID EEPROM:\n");
+
+    printf("Flex PCBA Serial Number: ");
+    gets(temp_eeprom.fbw_odm_pcba_serial);
+
+    /* Product Version - Using this as the Hardware Revision */
+    char vers[1];
+    printf("Product Version        : ");
+    gets(vers);
+    if (strlen(vers))
+      eeprom->fbw_product_version = (uint8_t)atoi(vers);
+
+    printf("System Serial Number   : ");
+    gets(temp_eeprom.fbw_product_serial);
+
+    printf("Manufacturing Date     : ");
+    gets(temp_eeprom.fbw_system_manufacturing_date);
+
+    printf("BMC MAC in hex         : ");
+    gets(temp_eeprom.fbw_local_mac);
+
+    /* Now copy all the manually configured settings */
+    copy_data ( (char*)temp_eeprom.fbw_odm_pcba_serial,
+                (char*)eeprom->fbw_odm_pcba_serial,
+                sizeof temp_eeprom.fbw_odm_pcba_serial );
+
+    copy_data ( (char*)temp_eeprom.fbw_product_serial,
+                (char*)eeprom->fbw_product_serial,
+                sizeof temp_eeprom.fbw_product_serial );
+
+    copy_data ( (char*)temp_eeprom.fbw_system_manufacturing_date,
+                (char*)eeprom->fbw_system_manufacturing_date,
+                sizeof temp_eeprom.fbw_system_manufacturing_date );
+
+    copy_data ( (char*)temp_eeprom.fbw_local_mac,
+                (char*)eeprom->fbw_local_mac,
+                sizeof temp_eeprom.fbw_local_mac );
+  }
+
+  return 0;
+}
+
+int main (int argc, char **argv)
+{
+  int rc = 0;
+  const char *fn = NULL;
+  char buf[FBW_EEPROM_SIZE];
+  struct wedge_eeprom_gn eeprom;
+
+  memset(&eeprom, 0, sizeof (struct wedge_eeprom_gn));
+
+  if (argv[1] != NULL) {
+    ftxt = fopen(argv[1], "r");
+    if (ftxt == NULL) {
+      rc = errno;
+      fprintf(stderr, "Failed to open %s\n", argv[1]);
+      goto out;
+    }
+  }
+
+  if (!fn) {
+    fn = FBW_EEPROM_FILE;
+  }
+
+  fin = fopen(fn, "r+");
+  if (fin == NULL) {
+    rc = errno;
+    fprintf(stderr, "Failed to open %s\n", FBW_EEPROM_FILE);
+    goto out;
+  }
+
+  rc = fread(buf, 1, sizeof buf, fin);
+  if (rc < sizeof buf) {
+    fprintf(stderr, "Failed to complete read.  Only got %d bytes\n", rc);
+    rc = ENOSPC;
+    goto out;
+  }
+  memcpy ((char*)&eeprom, (char*)buf+FBW_EEPROM_F_MAGIC, FBW_EEPROM_SIZE-FBW_EEPROM_F_MAGIC);
+
+  /* go back to the beginning of the file */
+  rewind(fin);
+
+  copy_data (LI_EEPROM_MAGIC_NUM, buf, FBW_EEPROM_F_MAGIC);
+  syslog(LOG_NOTICE, "Writing MAGIC: %c%c%c%c", buf[0], buf[1],
+         buf[2], buf[3]);
+
+  rc = fwrite(buf, 1, FBW_EEPROM_F_MAGIC, fin);
+  if (rc < FBW_EEPROM_F_MAGIC) {
+    fprintf(stderr, "Failed to write magic number");
+    goto out;
+  }
+
+  rc = fbw_fill_struct (&eeprom);
+  if (rc) {
+    goto out;
+  } else {
+    uint8_t crc_len = LI_EEPROM_V1_SIZE;
+
+    /* calculate based on all bytes but crc */
+    /* validate on all bytes, resulting in crc value 0 */
+     eeprom.fbw_crc8 = flx_crc8((void *) &eeprom, crc_len - 1) ^ FLEX_EEPROM_CRC8_CSUM;
+
+    /* DBG ONLY */
+    syslog(LOG_NOTICE, "wedge_eeprom_gn sz : %d bytes",
+           sizeof (struct wedge_eeprom_gn));
+    syslog(LOG_NOTICE, "crc_len            : %d", crc_len);
+    syslog(LOG_NOTICE, "EEPROM CRC8        : %X", eeprom.fbw_crc8); 
+
+    ssize_t sz = sizeof eeprom;
+    rc = fwrite(&eeprom, 1, sz, fin);
+    if (rc < sz) {
+      fprintf(stderr, "Failed to write entire EEPROM (%d bytes).  Wrote %d bytes",
+             sz, rc);
+      goto out;
+    }
+    syslog(LOG_NOTICE, "Wrote all %d bytes to EEPROM", rc); 
+    rc = 0;
+  }
+
+out:
+  if (fin) {
+    fclose(fin);
+  }
+
+  if (ftxt) {
+    fclose(ftxt);
+  }
+
+  return rc;
+}

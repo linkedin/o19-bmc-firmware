@@ -1,0 +1,118 @@
+From e7deb140a59c1ca3c4eed5967ba288464f077944 Mon Sep 17 00:00:00 2001
+From: Paul Moore <pmoore@redhat.com>
+Date: Fri, 26 Sep 2014 13:14:12 -0400
+Subject: [PATCH 04/11] tests: add ppc64 support to the regression tests
+
+Signed-off-by: Paul Moore <pmoore@redhat.com>
+---
+ tests/16-sim-arch_basic.c         |  3 +++
+ tests/16-sim-arch_basic.py        |  1 +
+ tests/23-sim-arch_all_le_basic.c  |  3 +++
+ tests/23-sim-arch_all_le_basic.py |  1 +
+ tests/26-sim-arch_all_be_basic.c  |  3 +++
+ tests/26-sim-arch_all_be_basic.py |  1 +
+ tests/regression                  | 10 ++++++++--
+ 7 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/tests/16-sim-arch_basic.c b/tests/16-sim-arch_basic.c
+index 9771913..09df44b 100644
+--- a/tests/16-sim-arch_basic.c
++++ b/tests/16-sim-arch_basic.c
+@@ -68,6 +68,9 @@ int main(int argc, char *argv[])
+ 	rc = seccomp_arch_add(ctx, SCMP_ARCH_MIPSEL64N32);
+ 	if (rc != 0)
+ 		goto out;
++	rc = seccomp_arch_add(ctx, SCMP_ARCH_PPC64LE);
++	if (rc != 0)
++		goto out;
+ 
+ 	rc = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(read), 1,
+ 			      SCMP_A0(SCMP_CMP_EQ, STDIN_FILENO));
+diff --git a/tests/16-sim-arch_basic.py b/tests/16-sim-arch_basic.py
+index 57a5ac3..d9e1939 100755
+--- a/tests/16-sim-arch_basic.py
++++ b/tests/16-sim-arch_basic.py
+@@ -39,6 +39,7 @@ def test(args):
+     f.add_arch(Arch("mipsel"))
+     f.add_arch(Arch("mipsel64"))
+     f.add_arch(Arch("mipsel64n32"))
++    f.add_arch(Arch("ppc64le"))
+     f.add_rule(ALLOW, "read", Arg(0, EQ, sys.stdin.fileno()))
+     f.add_rule(ALLOW, "write", Arg(0, EQ, sys.stdout.fileno()))
+     f.add_rule(ALLOW, "write", Arg(0, EQ, sys.stderr.fileno()))
+diff --git a/tests/23-sim-arch_all_le_basic.c b/tests/23-sim-arch_all_le_basic.c
+index eeb8556..9f67ed6 100644
+--- a/tests/23-sim-arch_all_le_basic.c
++++ b/tests/23-sim-arch_all_le_basic.c
+@@ -68,6 +68,9 @@ int main(int argc, char *argv[])
+ 	rc = seccomp_arch_add(ctx, seccomp_arch_resolve_name("mipsel64n32"));
+ 	if (rc != 0)
+ 		goto out;
++	rc = seccomp_arch_add(ctx, seccomp_arch_resolve_name("ppc64le"));
++	if (rc != 0)
++		goto out;
+ 
+ 	rc = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(read), 1,
+ 			      SCMP_A0(SCMP_CMP_EQ, STDIN_FILENO));
+diff --git a/tests/23-sim-arch_all_le_basic.py b/tests/23-sim-arch_all_le_basic.py
+index 36ab139..212ff50 100755
+--- a/tests/23-sim-arch_all_le_basic.py
++++ b/tests/23-sim-arch_all_le_basic.py
+@@ -39,6 +39,7 @@ def test(args):
+     f.add_arch(Arch("mipsel"))
+     f.add_arch(Arch("mipsel64"))
+     f.add_arch(Arch("mipsel64n32"))
++    f.add_arch(Arch("ppc64le"))
+     f.add_rule(ALLOW, "read", Arg(0, EQ, sys.stdin.fileno()))
+     f.add_rule(ALLOW, "write", Arg(0, EQ, sys.stdout.fileno()))
+     f.add_rule(ALLOW, "write", Arg(0, EQ, sys.stderr.fileno()))
+diff --git a/tests/26-sim-arch_all_be_basic.c b/tests/26-sim-arch_all_be_basic.c
+index a951b3c..1a44525 100644
+--- a/tests/26-sim-arch_all_be_basic.c
++++ b/tests/26-sim-arch_all_be_basic.c
+@@ -52,6 +52,9 @@ int main(int argc, char *argv[])
+ 	rc = seccomp_arch_add(ctx, seccomp_arch_resolve_name("mips64n32"));
+ 	if (rc != 0)
+ 		goto out;
++	rc = seccomp_arch_add(ctx, seccomp_arch_resolve_name("ppc64"));
++	if (rc != 0)
++		goto out;
+ 
+ 	rc = seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(read), 1,
+ 			      SCMP_A0(SCMP_CMP_EQ, STDIN_FILENO));
+diff --git a/tests/26-sim-arch_all_be_basic.py b/tests/26-sim-arch_all_be_basic.py
+index 1347406..cba2dea 100755
+--- a/tests/26-sim-arch_all_be_basic.py
++++ b/tests/26-sim-arch_all_be_basic.py
+@@ -33,6 +33,7 @@ def test(args):
+     f.add_arch(Arch("mips"))
+     f.add_arch(Arch("mips64"))
+     f.add_arch(Arch("mips64n32"))
++    f.add_arch(Arch("ppc64"))
+     f.add_rule(ALLOW, "read", Arg(0, EQ, sys.stdin.fileno()))
+     f.add_rule(ALLOW, "write", Arg(0, EQ, sys.stdout.fileno()))
+     f.add_rule(ALLOW, "write", Arg(0, EQ, sys.stderr.fileno()))
+diff --git a/tests/regression b/tests/regression
+index 428bdf2..3ab6171 100755
+--- a/tests/regression
++++ b/tests/regression
+@@ -21,8 +21,14 @@
+ # along with this library; if not, see <http://www.gnu.org/licenses>.
+ #
+ 
+-GLBL_ARCH_LE_SUPPORT="x86 x86_64 x32 arm aarch64 mipsel mipsel64 mipsel64n32"
+-GLBL_ARCH_BE_SUPPORT="mips mips64 mips64n32"
++GLBL_ARCH_LE_SUPPORT=" \
++	x86 x86_64 x32 \
++	arm aarch64 \
++	mipsel mipsel64 mipsel64n32 \
++	ppc64le"
++GLBL_ARCH_BE_SUPPORT=" \
++	mips mips64 mips64n32 \
++	ppc64"
+ 
+ GLBL_SYS_ARCH="../tools/scmp_arch_detect"
+ GLBL_SYS_RESOLVER="../tools/scmp_sys_resolver"
+-- 
+2.3.5
+

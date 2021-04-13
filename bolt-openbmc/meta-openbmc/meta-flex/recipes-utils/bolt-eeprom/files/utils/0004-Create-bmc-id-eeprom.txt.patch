@@ -1,0 +1,71 @@
+From 60311ff4ce3fbfe0f5bd179c7b94093932622c37 Mon Sep 17 00:00:00 2001
+From: Adrian Brathwaite <adrian.brathwaite@flex.com>
+Date: Fri, 23 Feb 2018 09:39:32 -0800
+Subject: [PATCH] Create bmc-id-eeprom.txt
+
+---
+ .../bmc-id-eeprom.example | 22 ++++++++++++++++++++++
+ .../bmc-id-eeprom.txt     | 22 ++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)
+ create mode 100644 bmc-id-eeprom.example
+ create mode 100644 bmc-id-eeprom.txt
+
+diff --git a/bmc-id-eeprom.example b/bmc-id-eeprom.example
+new file mode 100644
+index 0000000..97032c2
+--- /dev/null
++++ b/bmc-id-eeprom.example
+@@ -0,0 +1,22 @@
++1
++Bolt
++PA1034453000
++PA1034453000
++PA1034428000
++PA840002402
++PA1034428000
++ODMSERIALNUM
++0
++2
++0
++PRODSERIALNO
++
++Flex
++11062017
++ISU
++Milpitas
++0123456789AB
++0
++0
++
++0
+diff --git a/bmc-id-eeprom.txt b/bmc-id-eeprom.txt
+new file mode 100644
+index 0000000..7cb704c
+--- /dev/null
++++ b/bmc-id-eeprom.txt
+@@ -0,0 +1,22 @@
++VERSION
++PROD_NAME
++PROD_PARTNO
++ASSY_PARTNO
++LI_PCBA_PARTNO
++LI_PCB_PARTNO
++ODM_PCBA_NO
++ODM_PCBA_SERIAL
++PROD_STATE
++PROD_VERSION
++PROD_SUBVERS
++SYSTEM_SERIAL
++ASSET_TAG
++MANUFACTURER
++MFG_DATE
++PCB_MFG
++ASSMBLY_LOC
++BMC_MAC
++EXT_MAC
++EXT_MAC_SZ
++RESERVED
++CRC8
+-- 
+2.5.0
+

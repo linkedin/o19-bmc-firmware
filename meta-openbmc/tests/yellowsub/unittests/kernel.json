@@ -1,0 +1,9 @@
+[
+  "pmbus",
+  "tmp421",
+  "pwr1014a",
+  "at24",
+  "adm1275",
+  "syscpld",
+  "soccpld"
+]

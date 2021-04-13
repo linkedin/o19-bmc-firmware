@@ -1,0 +1,64 @@
+{
+  "type":"bolt",
+  "endpoints":{
+    "/api": [
+      "sys"
+    ],
+    "/api/sys":[
+      "server",
+      "onie",
+      "meminfo",
+      "i2c_rd",
+      "mb",
+      "psu_update",
+      "modbus_registers",
+      "temp",
+      "sw_vers",
+      "mdio_rd",
+      "sensors",
+      "bmc",
+      "fc_present",
+      "platform",
+      "inet",
+      "slotid",
+      "i2c_rd_hlp",
+      "mTerm_status",
+      "mdio_rd_hlp",
+      "gpios",
+      "fan",
+      "cpuinfo"
+    ],
+    "/api/sys/fc_present":[
+      "Not Applicable"
+    ],
+    "/api/sys/slotid":[
+      "0"
+    ],
+    "/api/sys/sensors":[
+      "tmp75-i2c-3-48",
+      "tmp75-i2c-3-49",
+      "tmp75-i2c-3-4a",
+      "tmp75-i2c-3-4b",
+      "tmp75-i2c-3-4c",
+      "fancpld-i2c-8-33",
+      "com_e_driver-i2c-4-33",
+      "ltc4151-i2c-7-6f",
+      "tmp75-i2c-8-48",
+      "tmp75-i2c-8-49"
+    ],
+    "/api/sys/mb": [
+      "fruid"
+    ],
+    "/api/sys/server": [
+      "status"
+    ],
+    "/api/sys/bmc":[
+      "CPU Usage",
+      "Description",
+      "Memory Usage",
+      "OpenBMC Version",
+      "Reset Reason",
+      "Uptime"
+    ]
+  }
+}

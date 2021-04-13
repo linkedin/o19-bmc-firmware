@@ -1,0 +1,80 @@
+From 21e74cf80be3d55fdfa5600bc99f284b19f75b01 Mon Sep 17 00:00:00 2001
+From: Paul Moore <pmoore@redhat.com>
+Date: Fri, 26 Sep 2014 12:50:40 -0400
+Subject: [PATCH 03/11] tools: add ppc64 support
+
+Signed-off-by: Paul Moore <pmoore@redhat.com>
+---
+ tools/scmp_arch_detect.c | 6 ++++++
+ tools/scmp_bpf_disasm.c  | 4 ++++
+ tools/scmp_bpf_sim.c     | 4 ++++
+ tools/util.c             | 6 ++++++
+ 4 files changed, 20 insertions(+)
+
+diff --git a/tools/scmp_arch_detect.c b/tools/scmp_arch_detect.c
+index 5a87252..d23d2ec 100644
+--- a/tools/scmp_arch_detect.c
++++ b/tools/scmp_arch_detect.c
+@@ -99,6 +99,12 @@ int main(int argc, char *argv[])
+ 		case SCMP_ARCH_MIPSEL64N32:
+ 			printf("mipsel64n32\n");
+ 			break;
++		case SCMP_ARCH_PPC64:
++			printf("ppc64\n");
++			break;
++		case SCMP_ARCH_PPC64LE:
++			printf("ppc64le\n");
++			break;
+ 		default:
+ 			printf("unknown\n");
+ 		}
+diff --git a/tools/scmp_bpf_disasm.c b/tools/scmp_bpf_disasm.c
+index 349b8a8..9199e17 100644
+--- a/tools/scmp_bpf_disasm.c
++++ b/tools/scmp_bpf_disasm.c
+@@ -334,6 +334,10 @@ int main(int argc, char *argv[])
+ 				arch = AUDIT_ARCH_MIPS64N32;
+ 			else if (strcmp(optarg, "mipsel64n32") == 0)
+ 				arch = AUDIT_ARCH_MIPSEL64N32;
++			else if (strcmp(optarg, "ppc64") == 0)
++				arch = AUDIT_ARCH_PPC64;
++			else if (strcmp(optarg, "ppc64le") == 0)
++				arch = AUDIT_ARCH_PPC64LE;
+ 			else
+ 				exit_usage(argv[0]);
+ 			break;
+diff --git a/tools/scmp_bpf_sim.c b/tools/scmp_bpf_sim.c
+index bb3a2e7..d3e439f 100644
+--- a/tools/scmp_bpf_sim.c
++++ b/tools/scmp_bpf_sim.c
+@@ -249,6 +249,10 @@ int main(int argc, char *argv[])
+ 				arch = AUDIT_ARCH_MIPS64N32;
+ 			else if (strcmp(optarg, "mipsel64n32") == 0)
+ 				arch = AUDIT_ARCH_MIPSEL64N32;
++			else if (strcmp(optarg, "ppc64") == 0)
++				arch = AUDIT_ARCH_PPC64;
++			else if (strcmp(optarg, "ppc64le") == 0)
++				arch = AUDIT_ARCH_PPC64LE;
+ 			else
+ 				exit_fault(EINVAL);
+ 			break;
+diff --git a/tools/util.c b/tools/util.c
+index 9b58bbb..f998009 100644
+--- a/tools/util.c
++++ b/tools/util.c
+@@ -62,6 +62,12 @@
+ #elif __MIPSEL__
+ #define ARCH_NATIVE		AUDIT_ARCH_MIPSEL64N32
+ #endif /* _MIPS_SIM_NABI32 */
++#elif __PPC64__
++#ifdef __BIG_ENDIAN__
++#define ARCH_NATIVE		AUDIT_ARCH_PPC64
++#else
++#define ARCH_NATIVE		AUDIT_ARCH_PPC64LE
++#endif
+ #else
+ #error the simulator code needs to know about your machine type
+ #endif
+-- 
+2.3.5
+

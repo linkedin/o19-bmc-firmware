@@ -1,0 +1,254 @@
+{
+  "psu1": {
+    "bus": "1",
+    "address": "0x40"
+  },
+  "psu1_eeprom": {
+    "bus": "1",
+    "address": "0x57"
+  },
+  "psu2": {
+    "bus": "2",
+    "address": "0x40"
+  },
+  "psu2_eeprom": {
+    "bus": "2",
+    "address": "0x57"
+  },
+  "psu3": {
+    "bus": "3",
+    "address": "0x40"
+  },
+  "psu3_eeprom": {
+    "bus": "3",
+    "address": "0x57"
+  },
+  "psu4": {
+    "bus": "6",
+    "address": "0x40"
+  },
+  "psu4_eeprom": {
+    "bus": "6",
+    "address": "0x57"
+  },
+  "psu5": {
+    "bus": "7",
+    "address": "0x40"
+  },
+  "psu5_eeprom": {
+    "bus": "7",
+    "address": "0x57"
+  },
+  "psu6": {
+    "bus": "12",
+    "address": "0x40"
+  },
+  "psu6_eeprom": {
+    "bus": "12",
+    "address": "0x57"
+  },
+  "system_eeprom": {
+    "bus": "8",
+    "address": "0x50"
+  },
+    "efuse1": {
+    "bus": "0",
+    "address": "0x12"
+  },
+    "efuse2": {
+    "bus": "0",
+    "address": "0x13"
+  },
+    "efuse3": {
+    "bus": "0",
+    "address": "0x10"
+  },
+    "efuse4": {
+    "bus": "0",
+    "address": "0x11"
+  },
+    "efuse5": {
+    "bus": "0",
+    "address": "0x46"
+  },
+    "efuse6": {
+    "bus": "0",
+    "address": "0x47"
+  },
+    "efuse7": {
+    "bus": "0",
+    "address": "0x45"
+  },
+    "efuse8": {
+    "bus": "0",
+    "address": "0x44"
+  },
+    "efuse9": {
+    "bus": "0",
+    "address": "0x43"
+  },
+    "efuse10": {
+    "bus": "0",
+    "address": "0x42"
+  },
+    "efuse11": {
+    "bus": "0",
+    "address": "0x41"
+  },
+    "efuse12": {
+    "bus": "0",
+    "address": "0x40"
+  },
+    "efuse13": {
+    "bus": "0",
+    "address": "0x14"
+  },
+    "efuse14": {
+    "bus": "0",
+    "address": "0x15"
+  },
+    "efuse15": {
+    "bus": "0",
+    "address": "0x16"
+  },
+    "efuse16": {
+    "bus": "0",
+    "address": "0x17"
+  },
+    "efuse17": {
+    "bus": "0",
+    "address": "0x50"
+  },
+    "efuse18": {
+    "bus": "0",
+    "address": "0x51"
+  },
+    "efuse19": {
+    "bus": "0",
+    "address": "0x53"
+  },
+    "efuse20": {
+    "bus": "0",
+    "address": "0x52"
+  },
+    "efuse21": {
+    "bus": "0",
+    "address": "0x55"
+  },
+    "efuse22": {
+    "bus": "0",
+    "address": "0x54"
+  },
+    "efuse23": {
+    "bus": "0",
+    "address": "0x57"
+  },
+    "efuse24": {
+    "bus": "0",
+    "address": "0x56"
+  },
+    "efuse25": {
+    "bus": "4",
+    "address": "0x12"
+  },
+    "efuse26": {
+    "bus": "4",
+    "address": "0x13"
+  },
+    "efuse27": {
+    "bus": "4",
+    "address": "0x10"
+  },
+    "efuse28": {
+    "bus": "4",
+    "address": "0x11"
+  },
+    "efuse29": {
+    "bus": "4",
+    "address": "0x46"
+  },
+    "efuse30": {
+    "bus": "4",
+    "address": "0x47"
+  },
+    "efuse31": {
+    "bus": "4",
+    "address": "0x45"
+  },
+    "efuse32": {
+    "bus": "4",
+    "address": "0x44"
+  },
+    "efuse33": {
+    "bus": "4",
+    "address": "0x43"
+  },
+    "efuse34": {
+    "bus": "4",
+    "address": "0x42"
+  },
+    "efuse35": {
+    "bus": "4",
+    "address": "0x41"
+  },
+    "efuse36": {
+    "bus": "4",
+    "address": "0x40"
+  },
+    "efuse37": {
+    "bus": "4",
+    "address": "0x14"
+  },
+    "efuse38": {
+    "bus": "4",
+    "address": "0x15"
+  },
+    "efuse39": {
+    "bus": "4",
+    "address": "0x16"
+  },
+    "efuse40": {
+    "bus": "4",
+    "address": "0x17"
+  },
+    "efuse41": {
+    "bus": "4",
+    "address": "0x50"
+  },
+    "efuse42": {
+    "bus": "4",
+    "address": "0x51"
+  },
+    "efuse43": {
+    "bus": "4",
+    "address": "0x53"
+  },
+    "efuse44": {
+    "bus": "4",
+    "address": "0x52"
+  },
+    "efuse45": {
+    "bus": "4",
+    "address": "0x55"
+  },
+    "efuse46": {
+    "bus": "4",
+    "address": "0x54"
+  },
+    "efuse47": {
+    "bus": "4",
+    "address": "0x57"
+  },
+    "efuse48": {
+    "bus": "4",
+    "address": "0x56"
+  },
+    "efuse49": {
+    "bus": "4",
+    "address": "0x59"
+  },
+    "efuse50": {
+    "bus": "4",
+    "address": "0x5a"
+  }
+}

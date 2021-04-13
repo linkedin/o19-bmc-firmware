@@ -1,0 +1,10 @@
+[
+  "",
+  "/var/run/dhclient.eth0.pid",
+  "/var/run/dhclient6.eth0.pid",
+  "rest.py",
+  "/usr/local/bin/ipmid",
+  "/usr/local/bin/ipmbd",
+  "/usr/local/bin/sensord",
+  "/usr/bin/fscd.py"
+]

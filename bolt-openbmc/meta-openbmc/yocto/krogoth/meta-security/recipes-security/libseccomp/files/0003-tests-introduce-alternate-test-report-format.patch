@@ -1,0 +1,124 @@
+From 389604a4d7b445e429998599827195751238400a Mon Sep 17 00:00:00 2001
+From: Joe MacDonald <joe@deserted.net>
+Date: Mon, 28 Oct 2013 15:40:16 -0400
+Subject: [PATCH 3/3] tests: introduce alternate test report format
+
+Adding an alternate test report format to the regression script.  The
+output format is modelled on the automake style described here:
+
+   http://www.gnu.org/software/automake/manual/automake.html#Simple-Tests
+
+and is intended to support integrating the existing test scripts with the
+Yocto Project's ptest infrastructure:
+
+   https://wiki.yoctoproject.org/wiki/Ptest#What_constitutes_a_ptest.3F
+
+Currently there was only one use of the existing "INFO" tag in test
+reporting, used in a way that better fit the "SKIP" model, so update that
+as well and adjust print_result to handle SKIP and INFO interchangeably so
+as to minimize the impact of this change on anyone not choosing to use the
+new report format.
+
+Upstream-Status: Submitted [http://www.mail-archive.com/libseccomp-discuss@lists.sourceforge.net/msg00470.html]
+
+Signed-off-by: Joe MacDonald <joe@deserted.net>
+---
+ tests/regression |   35 +++++++++++++++++++++++++++--------
+ 1 file changed, 27 insertions(+), 8 deletions(-)
+
+diff --git a/tests/regression b/tests/regression
+index 3c293a4..a9315f7 100755
+--- a/tests/regression
++++ b/tests/regression
+@@ -71,7 +71,7 @@ function verify_deps() {
+ function usage() {
+ cat << EOF
+ usage: regression [-h] [-v] [-m MODE] [-a] [-b BATCH_NAME] [-l <LOG>]
+-                  [-s SINGLE_TEST] [-t <TEMP_DIR>] [-T <TEST_TYPE>]
++                  [-p] [-s SINGLE_TEST] [-t <TEMP_DIR>] [-T <TEST_TYPE>]
+ 
+ libseccomp regression test automation script
+ optional arguments:
+@@ -80,6 +80,7 @@ optional arguments:
+   -a             specifies all tests are to be run
+   -b BATCH_NAME  specifies batch of tests to be run
+   -l [LOG]       specifies log file to write test results to
++  -p             use automake-style results output (ptest format)
+   -s SINGLE_TEST specifies individual test number to be run
+   -t [TEMP_DIR]  specifies directory to create temporary files in
+   -T [TEST_TYPE] only run tests matching the specified type
+@@ -127,17 +128,31 @@ function print_data() {
+ #
+ # Arguments:
+ #     1    string containing generated test number
+-#     2    string containing the test result (INFO, SUCCESS, ERROR, or FAILURE)
++#     2    string containing the test result (SKIP, INFO, SUCCESS, ERROR, or FAILURE)
+ #     3    string containing addition details
+ #
+ function print_result() {
+-	if [[ $2 == "INFO" && -z $verbose ]]; then
++	if [[ $2 == "INFO" || $2 == "SKIP" ]] && [[ -z $verbose ]]; then
+ 		return
+ 	fi
+-	if [[ $3 == "" ]]; then
+-		printf "Test %s result:   %s\n" "$1" "$2" >&$logfd
++	if [[ -n $ptest_report ]]; then
++		case $2 in
++			SUCCESS )
++				printf "PASS: %s %s\n" "$1" "$3" >&$logfd
++				;;
++			ERROR | FAILURE )
++				printf "FAIL: %s %s\n" "$1" "$3" >&$logfd
++				;;
++			SKIP )
++				printf "SKIP: %s %s\n" "$1" "$3" >&$logfd
++				;;
++		esac
+ 	else
+-		printf "Test %s result:   %s %s\n" "$1" "$2" "$3" >&$logfd
++		if [[ $3 == "" ]]; then
++			printf "Test %s result:   %s\n" "$1" "$2" >&$logfd
++		else
++			printf "Test %s result:   %s %s\n" "$1" "$2" "$3" >&$logfd
++		fi
+ 	fi
+ }
+ 
+@@ -358,7 +373,7 @@ function run_test_bpf_sim() {
+ 		fi
+ 	elif [[ "$testarch" != "all" ]] && [[ "$testarch" != "$arch" ]]; then
+ 		# only run tests that match the current architecture
+-		print_result $(generate_test_num "$1" $2 1) "INFO" \
++		print_result $(generate_test_num "$1" $2 1) "SKIP" \
+ 		       "Test skipped due to test/system architecture difference"
+ 		stats_skipped=$(($stats_skipped+1))
+ 		return
+@@ -788,13 +803,14 @@ tmpfile=""
+ tmpdir=""
+ type=
+ verbose=
++ptest_report=
+ stats_all=0
+ stats_skipped=0
+ stats_success=0
+ stats_failure=0
+ stats_error=0
+ 
+-while getopts "ab:gl:m:s:t:T:vh" opt; do
++while getopts "ab:gl:m:ps:t:T:vh" opt; do
+ 	case $opt in
+ 	a)
+ 		runall=1
+@@ -820,6 +836,9 @@ while getopts "ab:gl:m:s:t:T:vh" opt; do
+ 			exit 1
+ 		esac
+ 		;;
++	p)
++		ptest_report=1
++		;;
+ 	s)
+ 		single_list[single_count]=$OPTARG
+ 		single_count=$(($single_count+1))
+-- 
+1.7.10.4
+
