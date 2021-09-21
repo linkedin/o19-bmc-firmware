@@ -1,77 +1,23 @@
 diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 445399efe5..d666e0efce 100644
+index 27be9c9f18..fe934a6a02 100644
 --- a/arch/arm/Kconfig
 +++ b/arch/arm/Kconfig
-@@ -197,6 +197,10 @@ config TARGET_PWNEPTUNE
+@@ -182,6 +182,10 @@ config TARGET_PWNEPTUNE
  	select CPU_ARM1176
  	select SUPPORT_SPL
  
 +config TARGET_LIDELTAPOWER
-+    bool "Support Linkedin delta powershelf"
-+    select CPU_ARM926EJS
++        bool "Support Linkedin delta powershelf"
++        select CPU_ARM926EJS
 +
  config ARCH_DAVINCI
  	bool "TI DaVinci"
  	select CPU_ARM926EJS
-diff --git a/arch/arm/mach-aspeed/platform_g4.S b/arch/arm/mach-aspeed/platform_g4.S
-index 8e8c3598be..b4200de38d 100644
---- a/arch/arm/mach-aspeed/platform_g4.S
-+++ b/arch/arm/mach-aspeed/platform_g4.S
-@@ -391,6 +391,34 @@ case_end\@:
- .endm
- #endif
- 
-+#ifdef CONFIG_DELTAPOWER
-+.macro status_leds_on
-+  /* Enable GPIOP0, GPIOP2 for Status LED */
-+  ldr r0, =0x1e6e2088
-+  ldr r1, [r0]
-+  ldr r2, =0x00050000
-+  orr r1, r1, r2
-+  str r1, [r0]
-+
-+  ldr r0, =0x1e6e2090
-+  ldr r1, [r0]
-+  ldr r2, =0x00000030
-+  orr r1, r1, r2
-+  str r1, [r0]
-+
-+  ldr r0, =0x1e78007c
-+  ldr r1, [r0]
-+  ldr r2, =0x5000000
-+  orr r1, r1, r2
-+  str r1, [r0]
-+
-+  ldr r0, =0x1e780078
-+  ldr r1, [r0]
-+  ldr r2, =0x5000000
-+  orr r1, r1, r2
-+  str r1, [r0]
-+.endm
-+#endif
-     .macro enable_other_uarts
-     /* SCU84: Multi-function Pin Control 1, for UART1 and UART2 */
-     ldr   r0, =0x1e6e2084
-@@ -685,10 +713,13 @@ set_MPLL:
-     console_sel
- #endif
- 
-+#ifdef CONFIG_DELTAPOWER
-+    status_leds_on
-+#endif
-+
- /* Debug - UART console message */
- 
-     uart_console_setup
--
-     ldr r0, =CONFIG_ASPEED_COM
-     mov r1, #0x0D                                @ '\r'
-     str r1, [r0]
 diff --git a/board/fb-obmc/Kconfig b/board/fb-obmc/Kconfig
-index 39f88dda5d..f0ae5e96dc 100644
+index 34917cf87b..f33c828547 100644
 --- a/board/fb-obmc/Kconfig
 +++ b/board/fb-obmc/Kconfig
-@@ -166,3 +166,16 @@ config SYS_SOC
+@@ -127,3 +127,17 @@ config SYS_SOC
  config SYS_CONFIG_NAME
    default "pwneptune"
  endif
@@ -88,12 +34,13 @@ index 39f88dda5d..f0ae5e96dc 100644
 +config SYS_CONFIG_NAME
 +  default "lideltapower"
 +endif
++
 diff --git a/board/linkedin/Kconfig b/board/linkedin/Kconfig
 new file mode 100644
-index 0000000000..65a9b3e991
+index 0000000000..68559a238f
 --- /dev/null
 +++ b/board/linkedin/Kconfig
-@@ -0,0 +1,12 @@
+@@ -0,0 +1,13 @@
 +if TARGET_LIDELTAPOWER
 +config SYS_CPU
 +  default "arm926ejs"
@@ -106,18 +53,20 @@ index 0000000000..65a9b3e991
 +config SYS_CONFIG_NAME
 +  default "lideltapower"
 +endif
++
 diff --git a/board/linkedin/MAINTAINERS b/board/linkedin/MAINTAINERS
 new file mode 100644
-index 0000000000..1ef8c864e0
+index 0000000000..027463f384
 --- /dev/null
 +++ b/board/linkedin/MAINTAINERS
-@@ -0,0 +1,6 @@
+@@ -0,0 +1,7 @@
 +LINKEDIN OPENBMC BOARDS
 +M:     Ping Mao <pmao@linkedin.com>
 +S:     Maintained
 +F:     board/linkedin/
 +F:     include/configs/lideltapower.h
 +F:     configs/lideltapower_defconfig
++
 diff --git a/configs/lideltapower_defconfig b/configs/lideltapower_defconfig
 new file mode 100644
 index 0000000000..b5c5f86886
@@ -152,12 +101,15 @@ index 0000000000..b5c5f86886
 +CONFIG_SYS_PROMPT="deltapower-boot=> "
 diff --git a/include/configs/lideltapower.h b/include/configs/lideltapower.h
 new file mode 100644
-index 0000000000..247e37fabe
+index 0000000000..044ec41860
 --- /dev/null
 +++ b/include/configs/lideltapower.h
-@@ -0,0 +1,65 @@
+@@ -0,0 +1,68 @@
 +/*
 + * (C) Copyright 2004-Present
++ * Teddy Reed <reed@fb.com>, Facebook, Inc.
++ *
++ * (C) Copyright 2018-Present
 + * Ping Mao <pmao@linkedin.com>, Linkedin.
 + *
 + * SPDX-License-Identifier: GPL-2.0+
@@ -223,12 +175,15 @@ index 0000000000..247e37fabe
 +#endif  /* __LIDELTAPOWER_CONFIG_H */
 diff --git a/include/configs/linkedin_common.h b/include/configs/linkedin_common.h
 new file mode 100644
-index 0000000000..1bdf003151
+index 0000000000..e1c8ab8afd
 --- /dev/null
 +++ b/include/configs/linkedin_common.h
-@@ -0,0 +1,251 @@
+@@ -0,0 +1,254 @@
 +/*
 + * (C) Copyright 2004-Present
++ * Teddy Reed <reed@fb.com>, Facebook, Inc.
++ *
++ * (C) Copyright 2018-Present
 + * Ping Mao <pmao@linkedin.com>, Linkedin.
 + *
 + * SPDX-License-Identifier: GPL-2.0+
@@ -338,7 +293,7 @@ index 0000000000..1bdf003151
 + * Miscellaneous configurable options
 + */
 +#define CONFIG_SYS_HZ     1000
-+#define CONFIG_SYS_TIMERBASE	AST_TIMER_BASE 	/* use timer 1 */
++#define CONFIG_SYS_TIMERBASE	AST_TIMER_BASE  /* use timer 1 */
 +
 +/*
 + * NIC configuration

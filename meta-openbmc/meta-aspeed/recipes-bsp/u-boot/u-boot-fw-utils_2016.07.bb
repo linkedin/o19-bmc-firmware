@@ -4,11 +4,12 @@ LIC_FILES_CHKSUM = "file://Licenses/README;md5=a2c678cfd4a4d97135585cad908541c6"
 SECTION = "bootloader"
 DEPENDS = "mtd-utils"
 
-SRCBRANCH = "linkedin"
-SRCREV = "AUTOINC"
+SRCBRANCH = "openbmc/helium/v2016.07"
+SRCREV = "2867d34d5de49477d05a078d653b1a156d65e1f8"
 
-SRC_URI = "git://git.corp.linkedin.com:29418/openbmc/uboot;branch=${SRCBRANCH};protocol=ssh \
+SRC_URI = "git://github.com/facebook/openbmc-uboot.git;branch=${SRCBRANCH};protocol=ssh \
            file://fw_env.config \
+           file://uboot.patch \
            file://uboot_yellowsub.patch \
           "
 
