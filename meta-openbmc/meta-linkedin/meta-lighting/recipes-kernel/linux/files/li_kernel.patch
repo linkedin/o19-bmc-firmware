@@ -366,7 +366,7 @@ index acde30e08b00..5769b18e20bc 100644
  	spi_register_board_info(ast_spi0_devices, ARRAY_SIZE(ast_spi0_devices));
  #elif defined(CONFIG_MINIPACK)
 diff --git a/arch/arm/plat-aspeed/dev-uart.c b/arch/arm/plat-aspeed/dev-uart.c
-index 78123f784287..4f1749c6620b 100644
+index 78123f784287..ad746e240c36 100644
 --- a/arch/arm/plat-aspeed/dev-uart.c
 +++ b/arch/arm/plat-aspeed/dev-uart.c
 @@ -195,7 +195,7 @@ static struct plat_serial8250_port ast_uart_data[] = {
@@ -378,7 +378,7 @@ index 78123f784287..4f1749c6620b 100644
  	{
  		.mapbase	= AST_UART2_BASE,
  		.irq		= IRQ_UART2,
-@@ -372,7 +372,7 @@ struct platform_device ast_uart_device = {
+@@ -372,11 +372,11 @@ struct platform_device ast_uart_device = {
  void __init ast_add_device_uart(void)
  {
  #if defined(CONFIG_ARCH_AST1010)
@@ -387,10 +387,24 @@ index 78123f784287..4f1749c6620b 100644
  	ast_scu_multi_func_uart(1);
  	ast_scu_multi_func_uart(2);
  	ast_scu_multi_func_uart(3);
+-	ast_scu_multi_func_uart(4);
++	//ast_scu_multi_func_uart(4);
+ 
+   /* We need to disable the reset source of UART1/2 from LPC control for slot serial.
+      The default of UART1/2 is enable.
+@@ -442,7 +442,7 @@ iounmap(reg_base);
+ #else
+ 	ast_scu_multi_func_uart(1);
+ 	ast_scu_multi_func_uart(3);
+-	ast_scu_multi_func_uart(4);
++	//ast_scu_multi_func_uart(4);
+ #endif
+ 	platform_device_register(&ast_uart_device);
+ 
 diff --git a/drivers/hwmon/pmbus/lm25066.c b/drivers/hwmon/pmbus/lm25066.c
 old mode 100644
 new mode 100755
-index a26b1d1d9514..416486a0e170
+index a26b1d1d9514..d2aee5d81076
 --- a/drivers/hwmon/pmbus/lm25066.c
 +++ b/drivers/hwmon/pmbus/lm25066.c
 @@ -44,6 +44,11 @@ enum chips { lm25056, lm25063, lm25066, lm5064, lm5066 };

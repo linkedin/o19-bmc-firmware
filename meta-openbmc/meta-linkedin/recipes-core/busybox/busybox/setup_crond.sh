@@ -29,8 +29,8 @@
 
 # TODO: check for the if slot/server is present before starting the daemon
 echo -n "Setup crond..."
-  mkdir /etc/cron
-  mkdir /etc/cron/crontabs
-  echo "0 * * * * run-parts /etc/cron.daily" > /etc/cron/crontabs/root
+  echo "0 */8 * * * sleep \$((RANDOM*28800/32768)) && run-parts /etc/cron.dhcp" >> /etc/cron/crontabs/root
+  echo "*/10 * * * * sleep \$((RANDOM*600/32768)) && run-parts /etc/cron.reimage" >> /etc/cron/crontabs/root
+  echo "0 * * * * run-parts /etc/cron.daily" >> /etc/cron/crontabs/root
   /etc/init.d/busybox-cron start
 echo "done."

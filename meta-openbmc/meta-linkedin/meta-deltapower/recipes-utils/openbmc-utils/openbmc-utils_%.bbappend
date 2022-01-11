@@ -28,6 +28,10 @@ SRC_URI += "file://disable_watchdog.sh \
             file://get_bmc_id.sh \
             file://set_bmc_id.sh \
             file://eth0_mac_fixup0.sh \
+            file://configure_host.sh \
+            file://dhcp_renew.sh \
+            file://reimage.py \
+            file://get_ip.sh \
            "
 
 OPENBMC_UTILS_FILES += " \
@@ -40,9 +44,14 @@ OPENBMC_UTILS_FILES += " \
     eth0_mac_fixup0.sh \
     setup_i2c.sh \
     setup-gpio.sh \
+    configure_host.sh \
+    dhcp_renew.sh \
+    reimage.py \
+    get_ip.sh \
     "
 
 DEPENDS_append = " update-rc.d-native"
+RDEPENDS_${PN} += "python3-core"
 
 do_install_board() {
    # for backward compatible, create /usr/local/fbpackages/utils/ast-functions
@@ -56,6 +65,8 @@ do_install_board() {
     install -m 0755 ast-functions ${D}${sysconfdir}/ast-functions
     install -m 0755 set_control.sh ${D}${sysconfdir}/set_control.sh
     install -m 0755 get_bmc_id.sh ${D}${sysconfdir}/get_bmc_id.sh
+    install -m 0755 dhcp_renew.sh ${D}${sysconfdir}/dhcp_renew.sh
+    install -m 0755 reimage.py ${D}${sysconfdir}/reimage.py
     # the script to mount /mnt/data
     install -m 0755 ${WORKDIR}/mount_data0.sh ${D}${sysconfdir}/init.d/mount_data0.sh
     update-rc.d -r ${D} mount_data0.sh start 03 S .
@@ -81,6 +92,12 @@ do_install_board() {
 
     install -m 755 setup-gpio.sh ${D}${sysconfdir}/init.d/setup-gpio.sh
     update-rc.d -r ${D} setup-gpio.sh start 59 5 .
+
+    install -m 755 configure_host.sh ${D}${sysconfdir}/init.d/configure_host.sh
+    update-rc.d -r ${D} configure_host.sh start 20 5 .
+
+    install -m 755 get_ip.sh ${D}${sysconfdir}/init.d/get_ip.sh
+    update-rc.d -r ${D} get_ip.sh start 80 5 .
 }
 
 do_install_append() {

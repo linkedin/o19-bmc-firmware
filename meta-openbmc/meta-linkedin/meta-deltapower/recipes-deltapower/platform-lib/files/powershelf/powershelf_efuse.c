@@ -412,8 +412,10 @@ int efuse_get_status(efuse_info_t *efuse_info)
 
         if (val >= 0) {
            if (val & efuse_status_table[i].bitmask) {
-               syslog(LOG_WARNING, "efuse%d %s", efuse_info->efuse_num, efuse_status_table[i].status_desc);
-               efuse_info->efuse_status |= 1 << efuse_status_table[i].status;
+                if (efuse_status_table[i].status != EFUSE_UNIT_OFF) {
+                    syslog(LOG_WARNING, "efuse%d %s", efuse_info->efuse_num, efuse_status_table[i].status_desc);
+                }
+                efuse_info->efuse_status |= 1 << efuse_status_table[i].status;
             }
         }
         else {
@@ -428,7 +430,6 @@ int efuse_get_status(efuse_info_t *efuse_info)
      */
     if (efuse_info->efuse_status & BIT_IIN_OC_FAULT) {
          efuse_info->efuse_tripped = 1;
-         syslog(LOG_WARNING, "efuse%d efuse tripped\n", efuse_info->efuse_num);
     }
     else
         efuse_info->efuse_tripped = 0;

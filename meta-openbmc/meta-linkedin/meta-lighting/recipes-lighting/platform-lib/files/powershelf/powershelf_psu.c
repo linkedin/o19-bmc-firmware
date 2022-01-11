@@ -118,6 +118,26 @@ void psu_usage ()
     return;
 }
 
+void
+reset_stats (psu_info_t *psu_info)
+{
+    uint8_t num_status = 0;
+
+    if (!psu_info) {
+        syslog(LOG_WARNING, "Invalid input:  NULL \n");
+        return;
+    }
+
+    if ((psu_info->psu_num < 1) || psu_info->psu_num > MAX_PSU_NUM) {
+       return;
+    }
+
+    num_status = sizeof(psu_status_table)/sizeof(status_info_t);
+
+    reset_psu_mmap_stats(psu_info->psu_num-1, psu_status_table, num_status);
+}
+
+
 void psu_show_status(psu_info_t *psu_info)
 {
     uint8_t  val, num_status = 0;
@@ -133,12 +153,7 @@ void psu_show_status(psu_info_t *psu_info)
      * check the status bitmap
      */
     for (int i = 0; i < num_status; i++) {
-        if (psu_info->psu_status & (1 << psu_status_table[i].status)) {
-            printf("%s: yes\n", psu_status_table[i].status_desc);
-        }
-        else {
-            printf("%s: no\n", psu_status_table[i].status_desc);
-        }
+        printf("%s: %d\n", psu_status_table[i].status_desc, psu_info->status_cntr[psu_status_table[i].status]);
     }
     printf("\n");
 }
@@ -303,6 +318,7 @@ int psu_poll_info(psu_info_t *psu_info)
     int       status_iout;
     int       status_vin;
     int       i2c_bus, i2c_addr, selector_addr;
+    int       read_status = -1;
     int       psu;
     int       i2c_buses[] = {PSU_BUSES};
     int       i2c_addrs[] = {PSU_ADDRS};
@@ -419,7 +435,10 @@ int psu_poll_info(psu_info_t *psu_info)
     /*
      * get PSU status: faults and warnings
      */
-    psu_get_status(psu_info);
+    read_status = psu_get_status(psu_info);
+    if (read_status == 0) {
+        psu_clear_status(psu_info);
+    }
 
     return 0;
 }
@@ -454,19 +473,19 @@ int psu_save_info(psu_info_t *psu_info)
 int psu_get_status(psu_info_t *psu_info)
 {
     int val, fd, retry, num_faults;
+    int status = -1;
 
     if (!psu_info) {
         syslog(LOG_WARNING, "Invalid input:  NULL \n");
-        return -1;
+        return status;
     }
-    psu_info->psu_status = 0;
 
     num_faults = sizeof(psu_status_table) / sizeof(psu_status_table[0]);
 
     fd = i2c_open(psu_info->i2c_bus, psu_info->i2c_addr);
     if (fd < 0) {
         syslog(LOG_WARNING, "PSU%d failed to open i2c\n", psu_info->psu_num);
-        return -1;
+        return status;
     }
 
     for (int i = 0; i < num_faults; i++) {
@@ -484,13 +503,65 @@ int psu_get_status(psu_info_t *psu_info)
         if (val == -1) {
             syslog(LOG_WARNING, "PSU%d %s read failed\n",
                    psu_info->psu_num, psu_status_table[i].status_desc);
+
+            // even if one read fails, discard current read for psu
+            for (int fault = 0; i < num_faults ; fault++) {
+                psu_info->status_cntr[psu_status_table[i].status] = 0;
+            }
+
+            close(fd);
+            return status;
         }
         else {
             if (val & psu_status_table[i].bitmask) {
-                syslog(LOG_WARNING, "psu%d %s", psu_info->psu_num - 1, psu_status_table[i].status_desc);
-                psu_info->psu_status |= 1 << psu_status_table[i].status;
+                syslog(LOG_WARNING, "psu%d %s", psu_info->psu_num, psu_status_table[i].status_desc);
+                psu_info->status_cntr[psu_status_table[i].status] += 1;
+                status = 0;
             }
         }
+    }
+
+    close(fd);
+    return status;
+}
+
+int psu_clear_status(psu_info_t *psu_info)
+{
+    int val, fd, retry;
+
+    if (!psu_info) {
+        syslog(LOG_WARNING, "Invalid input:  NULL \n");
+        return -1;
+    }
+
+    fd = i2c_open(psu_info->i2c_bus, psu_info->i2c_addr);
+    if (fd < 0) {
+        syslog(LOG_WARNING, "PSU%d failed to open for write i2c\n", psu_info->psu_num);
+        return -1;
+    }
+
+    psu_clear_status_info_t psu_clr_stat;
+    psu_clr_stat.i2c_addr = psu_info->i2c_addr << 1;
+    psu_clr_stat.reg = CLEAR_FAULTS_REG;
+
+    uint8_t crc = crc8(&psu_clr_stat, sizeof(psu_clear_status_info_t));
+
+    val = i2c_smbus_write_byte_data(fd, CLEAR_FAULTS_REG, crc);
+    retry = 0;
+    while ((retry < MAX_RETRIES) && (val < 0)) {
+        usleep(1000);
+        val = i2c_smbus_write_byte_data(fd, CLEAR_FAULTS_REG, crc);
+        if (val < 0)
+            retry++;
+        else
+            break;
+    }
+
+    if (val != 0) {
+        syslog(LOG_WARNING, "PSU%d clear status failed \n", psu_info->psu_num);
+    }
+    else {
+        syslog(LOG_WARNING, "PSU%d clear status success \n", psu_info->psu_num);
     }
 
     close(fd);

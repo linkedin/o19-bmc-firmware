@@ -26,6 +26,8 @@ class efuseNode(node):
         command = data["action"]
         if command == 'power-on':
             cmd = '/usr/local/bin/eFuse-util ' + str(self.num) + ' --on'
+        elif command == 'power-off':
+            cmd = '/usr/local/bin/eFuse-util ' + str(self.num) + ' --off'
         elif command == 'reset':
             cmd = '/usr/local/bin/eFuse-util ' + str(self.num) + ' --reset'
         else:

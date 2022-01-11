@@ -67,6 +67,7 @@
  */
 efuse_info_t efuse_info_cache[MAX_EFUSE_NUM];
 psu_info_t   psu_info_cache[MAX_PSU_NUM];
+psu_info_t   psu_info_mem[MAX_PSU_NUM];
 fan_info_t   fan_info_cache;
 int         *mmap_addr;
 
@@ -117,6 +118,12 @@ save_psu_info (psu_info_t *psu_info)
     if ((psu_info->psu_num < 1) || psu_info->psu_num > MAX_PSU_NUM) {
        syslog(LOG_WARNING, "psu %d is out of range", psu_info->psu_num);
        return -1;
+    }
+
+    get_mmap_info((int*)&psu_info_mem, FILE_PSU, sizeof(psu_info_mem));
+
+    for(int i=0; i < PSU_STATUS_MAX; i++) {
+        psu_info->status_cntr[i] += psu_info_mem[psu_info->psu_num - 1].status_cntr[i];
     }
 
     memcpy(&psu_info_cache[psu_info->psu_num - 1], psu_info, sizeof(psu_info_t));
@@ -191,13 +198,33 @@ write_mmap_file(uint8_t fd)
     return 0;
 }
 
+void init_psus (int *mmap_addr)
+{
+    psu_info_t *psu_info;
+
+    if (!mmap_addr)
+       return;
+
+    psu_info = (psu_info_t *) malloc(sizeof(psu_info_t));
+
+    if (!psu_info)
+        return;
+
+    for (int i = 1; i < MAX_PSU_NUM + 1; i++) {
+        memset(psu_info, 0, sizeof(psu_info_t));
+        psu_info->psu_num = i;
+        save_psu_info(psu_info);
+    }
+
+    free(psu_info);
+}
+
 int init_poll (int filesize)
 {
     int mode = 0x0777;
 
     bmc_id = which_bmc();
 
-    set_gpio_out_direction(BMC_HEARTBEAT_OUT_GPIO_NUM);
     if (fd_mmap == -1) {
         syslog(LOG_WARNING, "failed to open mmap file");
         return -1;
@@ -224,6 +251,8 @@ int init_poll (int filesize)
         return -1;
     }
 
+    init_psus(mmap_addr);
+
     return 0;
 }
 
@@ -235,13 +264,14 @@ void poll_psu_info (int *mmap_addr, uint8_t fd)
     int        len;
     int        offset;
     psu_info_t *psu_info;
+
+    if (!mmap_addr)
+       return;
+
     psu_info = (psu_info_t *) malloc(sizeof(psu_info_t));
 
     if (!psu_info)
         return;
-
-    if (!mmap_addr)
-       return;
 
     /*
      * check PSU presense, AC input and all faults and warning
@@ -304,12 +334,6 @@ void poll_efuse_info(int *mmap_addr, uint8_t fd)
         }
 
         save_efuse_info(efuse_info);
-        /*
-         * check efuse state
-         */
-        if (efuse_info->state == EFUSE_OFF) {
-            syslog(LOG_WARNING, "efuse%d is off", i);
-        }
     }
 
     free(efuse_info);
@@ -370,29 +394,14 @@ int do_poll(int timedout_flag, int fd)
     time_t start = time(NULL);
     time_t seconds = HEALTHMON_INTERVAL;
 
-    /*
-     * set GPIO OUT to LOW
-     */
-    gpio_set(BMC_HEARTBEAT_OUT_GPIO_NUM, GPIO_VALUE_LOW);
+       /*
+        * set GPIO OUT to LOW
+        */
+        sleep(1);
 
-    sleep(1);
-
-    if ((timedout_flag == 0) && (gpio_get(BMC_HEARTBEAT_IN_GPIO_NUM) == GPIO_VALUE_LOW)) {
-         /*
-          *  Other BMC sets GPIO to LOW, back off
-          */
-         srand(time(NULL));
-         randomTime = rand() % HEALTHMON_INTERVAL;
-         sleep(randomTime);
-         gpio_set(BMC_HEARTBEAT_OUT_GPIO_NUM, GPIO_VALUE_HIGH);
-         sleep(BMC_POLL_WAIT_TIME);
-         return 0;
-    }
-    else {
-        /*
-         * Own the i2c buses, start transaction of HW access
-         */
-        endwait = start + seconds;
+       /*
+        * Own the i2c buses, start transaction of HW access
+        */
         sleep(BMC_POLL_WAIT_TIME);
 
         /*
@@ -406,20 +415,11 @@ int do_poll(int timedout_flag, int fd)
             syslog(LOG_WARNING, "failed to write to mmap");
         }
 
-        start = time(NULL);
-        if (start < endwait)
-        {
-            /* waiting until next cycle*/
-            sleep (endwait - start);
-        }
-
         /*
          * Done access HW, set GPIO OUT to HIGH
          */
-        gpio_set(BMC_HEARTBEAT_OUT_GPIO_NUM, GPIO_VALUE_HIGH);
         sleep(BMC_POLL_WAIT_TIME);
         return 0;
-    }
 }
 
 int main(int argc, char **argv) {
@@ -449,64 +449,23 @@ int main(int argc, char **argv) {
      */
     init_poll(filesize);
 
+
     if (bmc_id == 0)
+    {
         in_gpio_value_prev = 0;
+    }
+    else
+    {
+       // do not run on BMC1
+       return 0;
+    }
 
     while (1) {
-        in_gpio_value_current = gpio_get(BMC_HEARTBEAT_IN_GPIO_NUM);
-
-        if ((in_gpio_value_current == GPIO_VALUE_HIGH) && (in_gpio_value_prev == GPIO_VALUE_LOW)) {
-            in_gpio_value_prev = in_gpio_value_current;
-            /*
-             * detected GPIO LOW to HIGH transaction
-             */
-            timedout_flag = 0;
-            start_send_pulse = 0;
-            gpio_low_count = 0;
-            gpio_pulse_count = 0;
-            count = 0;
-            do_poll(timedout_flag, fd_mmap);
-        }
-        else {
-            in_gpio_value_prev = in_gpio_value_current;
-            sleep(1);
-            /*
-             * timeout check
-             */
-            count++;
-            if (count >= BMC_SEND_PULSE_WAIT) {
-                start_send_pulse = 1;
-            }
-
-            if ((timedout_flag == 0) && (gpio_pulse_count >= boot_timeout_count)) {
-                /*
-                 * timeout, other BMC not alive
-                 */
-                timedout_flag = 1;
-                gpio_pulse_count = 0;
-            }
-
-            if (start_send_pulse == 1) {
-                gpio_low_count++;
-
-                if (gpio_low_count == HEALTHMON_INTERVAL) {
-                     if (gpio_value == GPIO_VALUE_LOW) {
-                         gpio_set(BMC_HEARTBEAT_OUT_GPIO_NUM, GPIO_VALUE_HIGH);
-                         gpio_value = GPIO_VALUE_HIGH;
-                     }
-                     else if (gpio_value == GPIO_VALUE_HIGH) {
-                         gpio_set(BMC_HEARTBEAT_OUT_GPIO_NUM, GPIO_VALUE_LOW);
-                         gpio_value = GPIO_VALUE_LOW;
-                         gpio_pulse_count++;
-
-                         if (timedout_flag == 1) {
-                             do_poll(timedout_flag, fd_mmap);
-                         }
-                     }
-                     gpio_low_count = 0;
-                }
-            }
-        }
+       sleep(1);
+       /*
+        * timeout check
+        */
+        do_poll(timedout_flag, fd_mmap);
     }
 
     /* Don't forget to free the mmapped memory

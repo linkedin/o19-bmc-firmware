@@ -67,6 +67,7 @@
  */
 efuse_info_t efuse_info_cache[MAX_EFUSE_NUM];
 psu_info_t   psu_info_cache[MAX_PSU_NUM];
+psu_info_t   psu_info_mem[MAX_PSU_NUM];
 fan_info_t   fan_info_cache;
 int         *mmap_addr;
 
@@ -117,6 +118,12 @@ save_psu_info (psu_info_t *psu_info)
     if ((psu_info->psu_num < 1) || psu_info->psu_num > MAX_PSU_NUM) {
        syslog(LOG_WARNING, "psu %d is out of range", psu_info->psu_num);
        return -1;
+    }
+
+    get_mmap_info((int*)&psu_info_mem, FILE_PSU, sizeof(psu_info_mem));
+
+    for(int i=0; i < PSU_STATUS_MAX; i++) {
+        psu_info->status_cntr[i] += psu_info_mem[psu_info->psu_num - 1].status_cntr[i];
     }
 
     memcpy(&psu_info_cache[psu_info->psu_num - 1], psu_info, sizeof(psu_info_t));
@@ -191,6 +198,27 @@ write_mmap_file(uint8_t fd)
     return 0;
 }
 
+void init_psus (int *mmap_addr)
+{
+    psu_info_t *psu_info;
+
+    if (!mmap_addr)
+       return;
+
+    psu_info = (psu_info_t *) malloc(sizeof(psu_info_t));
+
+    if (!psu_info)
+        return;
+
+    for (int i = 1; i < MAX_PSU_NUM + 1; i++) {
+        memset(psu_info, 0, sizeof(psu_info_t));
+        psu_info->psu_num = i;
+        save_psu_info(psu_info);
+    }
+
+    free(psu_info);
+}
+
 int init_poll (int filesize)
 {
     int mode = 0x0777;
@@ -223,6 +251,8 @@ int init_poll (int filesize)
         return -1;
     }
 
+    init_psus(mmap_addr);
+
     return 0;
 }
 
@@ -234,13 +264,14 @@ void poll_psu_info (int *mmap_addr, uint8_t fd)
     int        len;
     int        offset;
     psu_info_t *psu_info;
+
+    if (!mmap_addr)
+       return;
+
     psu_info = (psu_info_t *) malloc(sizeof(psu_info_t));
 
     if (!psu_info)
         return;
-
-    if (!mmap_addr)
-       return;
 
     /*
      * check PSU presense, AC input and all faults and warning
@@ -326,12 +357,6 @@ void poll_efuse_info(int *mmap_addr, uint8_t fd)
         check_efuse_temp(efuse_info);
 
         save_efuse_info(efuse_info);
-        /*
-         * check efuse state
-         */
-        if (efuse_info->state == EFUSE_OFF) {
-            syslog(LOG_WARNING, "efuse%d is off", i);
-        }
     }
 
     free(efuse_info);

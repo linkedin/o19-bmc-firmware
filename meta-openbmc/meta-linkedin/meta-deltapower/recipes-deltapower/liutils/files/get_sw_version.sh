@@ -22,7 +22,7 @@ WDT2_TMOUT_STAT_REG_2ND_BOOT_CODE=2
 boot=$($DEVMEM 0x1E785030)
 boot=$((boot&$WDT2_TMOUT_STAT_REG_2ND_BOOT_CODE))
 
-SW_VERSION="v1.4.0"
+SW_VERSION="v2.0.1"
 echo "BMC Software Version: Delta powershelf Dual BMC $SW_VERSION"
 
 # Check if boot code source is flash1

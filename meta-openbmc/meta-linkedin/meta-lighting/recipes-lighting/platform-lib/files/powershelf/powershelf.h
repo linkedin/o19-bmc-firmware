@@ -18,6 +18,7 @@
  * Register addresses
  */
 #define   OPERATION_REG                   0x1
+#define   CLEAR_FAULTS_REG                0x3
 #define   STATUS_BYTE_ADDR                0x78
 #define   STATUS_WORD_ADDR                0x79
 #define   STATUS_VOUT_ADDR                0x7a
@@ -294,6 +295,7 @@ typedef enum {
    */
   PSU_FAN1_FAULT             = 10,    /* fan 1 fault */
   PSU_FAN1_OVER_RIDE         = 11,    /* Over-ride by system */
+  PSU_STATUS_MAX             = 12,
 } psu_status_t;
 
 typedef enum {
@@ -311,12 +313,16 @@ typedef struct psu_aggregate_info {
     float  side_a_power;
 } psu_aggregate_info_t;
 
+typedef struct psu_clear_status_info {
+    uint8_t i2c_addr;
+    uint8_t reg;
+} psu_clear_status_info_t;
+
 typedef struct psu_info {
     uint8_t  psu_num;
     int      i2c_bus;
     int      i2c_addr;
     psu_operation_state_t   operation_state;
-    uint32_t   psu_status;
     float  volt_input;
     float  current_input;
     float  current_output;
@@ -324,6 +330,7 @@ typedef struct psu_info {
     float  power_input;
     float  power_output;
     int    fan_speed;
+    uint8_t status_cntr[PSU_STATUS_MAX];
     int    temperature[PSU_FAN_NUM];
 } psu_info_t;
 
@@ -331,6 +338,7 @@ typedef struct psu_info {
 /* ****************************************
  *         Common Functions               *
  ******************************************/
+uint8_t crc8(const void* vptr, int len);
 int i2c_master_selector_ctrl(uint8_t ctrl_reg);
 int i2c_master_selector_access(uint8_t bus, uint8_t addr);
 int i2c_open(uint8_t bus, uint8_t addr);
@@ -360,10 +368,13 @@ int   efuse_operation (uint8_t efuse_num, uint8_t op);
 /* ****************************************
  *         Functions for PSU              *
  ******************************************/
+void  reset_stats (psu_info_t *psu_info);
 int   psu_poll_info(psu_info_t *psu_info);
 int   psu_get_status(psu_info_t *psu_info);
+int   psu_clear_status(psu_info_t *psu_info);
 char* psu_get_operation_state(psu_operation_state_t state);
 int   psu_aggregate_info(psu_aggregate_info_t *psu_aggr_info);
+int   reset_psu_mmap_stats (int psu_num, status_info_t *status_info, int num_status);
 int   psu_get_mmap_info();
 
 /* ****************************************

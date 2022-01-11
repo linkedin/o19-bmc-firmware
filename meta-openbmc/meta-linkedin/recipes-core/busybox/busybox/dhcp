@@ -1,0 +1,8 @@
+#!/bin/sh
+
+/usr/local/bin/dhcp_renew.sh
+EXITVALUE=$?
+if [ $EXITVALUE != 0 ]; then
+    /usr/bin/logger -t dhcp_renew "ALERT exited abnormally with [$EXITVALUE]"
+fi
+exit $EXITVALUE

@@ -57,6 +57,7 @@ int main(int argc, char **argv)
     uint8_t      reset_efuse = 0;
     uint8_t      on_efuse = 0;
     uint8_t      poll_efuse = 0;
+    uint8_t      off_efuse = 0;
     int          ret;
 
     efuse_info_t *efuse_info;
@@ -105,6 +106,9 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[2], "--poll"))  {
             poll_efuse = 1;
         }
+        else if (!strcmp(argv[2], "--off"))  {
+            off_efuse = 1;
+        }
     }
 
     /*
@@ -115,6 +119,10 @@ int main(int argc, char **argv)
     for (int i = efuse_start; i < efuse_end; i++) {
         memset(efuse_info, 0, sizeof(efuse_info_t));
         efuse_info->efuse_num = i;
+
+        if (reset_efuse || on_efuse || off_efuse)
+            poll_efuse = 1;
+
         if (poll_efuse == 1) {
             if (efuse_poll_info(efuse_info) != 0)
                 syslog(LOG_WARNING, "poll failed: efuse#%d", i);
@@ -163,6 +171,19 @@ int main(int argc, char **argv)
              else {
                  printf("eFuse%d failed to turn on\n", efuse_info->efuse_num);
                  syslog(LOG_WARNING, "eFuse%d failed to turn on", efuse_info->efuse_num);
+             }
+        }
+        else if (off_efuse) {
+            /*
+             * turn off efuse
+             */
+             if (efuse_operation(efuse_info->efuse_num, 0) == 0) {
+                 syslog(LOG_WARNING, "eFuse%d has been turned off", efuse_info->efuse_num);
+                 printf("eFuse%d is turned off\n", efuse_info->efuse_num);
+             }
+             else {
+                 printf("eFuse%d failed to turn off\n", efuse_info->efuse_num);
+                 syslog(LOG_WARNING, "eFuse%d failed to turn off", efuse_info->efuse_num);
              }
         }
     }

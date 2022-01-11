@@ -1,0 +1,13 @@
+#!/bin/sh
+
+FILE=/home/root/reimage.json
+if test -f "$FILE"; then
+    /usr/local/bin/reimage.py
+
+    EXITVALUE=$?
+    if [ $EXITVALUE != 0 ]; then
+        /usr/bin/logger -t reimage "ALERT exited abnormally with [$EXITVALUE]"
+    fi
+    exit $EXITVALUE
+fi
+exit 0

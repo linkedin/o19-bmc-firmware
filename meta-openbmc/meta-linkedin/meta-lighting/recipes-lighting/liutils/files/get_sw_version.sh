@@ -22,7 +22,7 @@ WDT2_TMOUT_STAT_REG_2ND_BOOT_CODE=2
 boot=$($DEVMEM 0x1E785030)
 boot=$((boot&$WDT2_TMOUT_STAT_REG_2ND_BOOT_CODE))
 
-SW_VERSION="v1.0.0"
+SW_VERSION="v1.1.0"
 echo "Lighting powershelf Dual BMC OpenBMC Version     : $SW_VERSION"
 
 # Check if boot code source is flash1

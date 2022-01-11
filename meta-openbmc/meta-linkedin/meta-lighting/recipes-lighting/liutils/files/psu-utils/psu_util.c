@@ -69,10 +69,11 @@ int main(int argc, char **argv)
     int       psu, psu_idx;
     uint8_t   psu_start = 0, psu_end = 0;
     int       i2c_bus, i2c_addr;
-    uint8_t   show_status = 0;
-    uint8_t   poll_psu = 0;
     psu_info_t           psu_info[MAX_PSU_NUM];
     psu_aggregate_info_t psu_aggr_info;
+    uint8_t   show_status = 0;
+    uint8_t   poll_psu = 0;
+    uint8_t   reset = 0;
 
     memset(psu_info, 0, MAX_PSU_NUM*sizeof(psu_info_t));
 
@@ -111,6 +112,9 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[2], "--poll"))  {
             poll_psu = 1;
         }
+        else if (!strcmp(argv[2], "--reset_stats"))  {
+            reset = 1;
+        }
     }
 
     /*
@@ -131,6 +135,9 @@ int main(int argc, char **argv)
 
         if (show_status)
             psu_show_status(&psu_info[psu_idx]);
+
+        if (reset)
+            reset_stats(&psu_info[psu_idx]);
     }
 
     /*

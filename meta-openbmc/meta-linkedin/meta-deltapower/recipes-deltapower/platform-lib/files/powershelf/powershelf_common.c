@@ -326,3 +326,87 @@ get_mmap_info (int* cache, device_type type, size_t len)
     close(fd);
     return 0;
 }
+
+int
+reset_psu_mmap_stats (int psu_num, status_info_t *status_info, int num_status)
+{
+    int fd;
+    int *map;
+    int status, size, offset;
+    struct stat s;
+    int pagesize = getpagesize();
+    int done = 0, retries = 5;
+
+    fd = open(MMAP_FILEPATH, O_RDWR);
+    if (fd == -1) {
+        syslog(LOG_WARNING, "Failed to open mmap file\n");
+        return -1;
+    }
+
+    for(int attempt; attempt < retries; ++attempt) {
+        done = flock(fd, LOCK_EX);
+        if (done != 0) {
+            /*
+             * flock errors
+             */
+            syslog(LOG_WARNING, "Failed to lock mmap file\n");
+            sleep(1);
+            continue;
+        }
+        else
+            break;
+    }
+
+    if (done != 0) {
+        syslog(LOG_WARNING, "Failed to lock mmap file\n");
+        close(fd);
+        return -1;
+    }
+
+    /* Get the size of the file. */
+    status = fstat (fd, &s);
+    size = s.st_size;
+    size += pagesize-(size%pagesize);
+
+    map = mmap(0, size,  PROT_WRITE, MAP_SHARED, fd, 0);
+    if (map == MAP_FAILED) {
+        close(fd);
+        syslog(LOG_ERR, "mmap failed, errno: %d", errno);
+        return -1;
+    }
+
+    offset = get_file_offset(FILE_PSU);
+
+    psu_info_t *psu_info = (psu_info_t*)(map+offset);
+
+    for (int i = 0; i < num_status; i++) {
+        printf("%s: %d\n", status_info[i].status_desc, psu_info[psu_num].status_cntr[status_info[i].status]);
+    }
+    printf("\n");
+
+    memset(psu_info[psu_num].status_cntr, 0, PSU_STATUS_MAX);
+
+    flock(fd, LOCK_UN);
+    if (munmap(map, size) == -1) {
+        syslog(LOG_WARNING, "Error un-mmapping the file");
+    }
+
+    close(fd);
+    return 0;
+}
+
+
+uint8_t crc8(const void* vptr, int len) {
+  const uint8_t *data = vptr;
+  unsigned crc = 0;
+  int i, j;
+  for (j = len; j; j--, data++) {
+    crc ^= (*data << 8);
+    for(i = 8; i; i--) {
+      if (crc & 0x8000)
+        crc ^= (0x1070 << 3);
+      crc <<= 1;
+    }
+  }
+  return (uint8_t)(crc >> 8);
+}
